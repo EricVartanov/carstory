@@ -26,3 +26,12 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Laravel Boost / MCP + editor/agent local configs
+boost.json
+.mcp.json
+/.cursor/
+/.junie/
+/.claude/
+/.agents/
+/.codex/
