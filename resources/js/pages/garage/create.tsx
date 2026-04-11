@@ -44,7 +44,9 @@ export default function GarageCreate() {
             <div className="flex flex-col gap-6 p-4">
                 <div className="flex flex-col gap-1">
                     <h1 className="text-lg font-semibold">Добавить машину</h1>
-                    <p className="text-sm text-muted-foreground">Выберите марку/модель из каталога или введите вручную.</p>
+                    <p className="text-sm text-muted-foreground">
+                        Выберите марку/модель из каталога или введите вручную.
+                    </p>
                 </div>
 
                 <form onSubmit={submit} className="grid gap-6">
@@ -109,7 +111,11 @@ export default function GarageCreate() {
                         <InputError message={errors.color} />
                     </div>
 
-                    <Button type="submit" className="w-full sm:w-auto" disabled={processing}>
+                    <Button
+                        type="submit"
+                        className="w-full sm:w-auto"
+                        disabled={processing}
+                    >
                         {processing && <Spinner />}
                         Сохранить
                     </Button>
@@ -131,4 +137,3 @@ GarageCreate.layout = {
         },
     ],
 };
-

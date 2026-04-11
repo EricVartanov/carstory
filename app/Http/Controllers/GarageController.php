@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreCarRequest;
 use App\Models\Car;
 use App\Models\CarOwnership;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -17,8 +18,14 @@ class GarageController extends Controller
      */
     public function index(): Response
     {
+        /** @var User $user */
+        $user = request()->user();
+
         $cars = Car::query()
-            ->where('user_id', auth()->id())
+            ->where('user_id', $user->id)
+            ->with([
+                'entries' => fn ($query) => $query->latest('date')->limit(1),
+            ])
             ->latest()
             ->get([
                 'id',
@@ -32,8 +39,27 @@ class GarageController extends Controller
                 'created_at',
             ]);
 
+        $previousCars = CarOwnership::query()
+            ->where('user_id', $user->id)
+            ->whereNotNull('owned_until')
+            ->with([
+                'car' => fn ($query) => $query->with([
+                    'entries' => fn ($q) => $q->latest('date')->limit(1),
+                ]),
+            ])
+            ->orderByDesc('owned_until')
+            ->get()
+            ->filter(fn (CarOwnership $ownership) => $ownership->car && $ownership->car->user_id !== $user->id)
+            ->map(fn (CarOwnership $ownership) => [
+                'car' => $ownership->car,
+                'owned_from' => $ownership->owned_from->format('d.m.Y'),
+                'owned_until' => $ownership->owned_until->format('d.m.Y'),
+            ])
+            ->values();
+
         return Inertia::render('garage/index', [
             'cars' => $cars,
+            'previousCars' => $previousCars,
         ]);
     }
 
@@ -43,6 +69,43 @@ class GarageController extends Controller
     public function create(): Response
     {
         return Inertia::render('garage/create');
+    }
+
+    /**
+     * Display the specified car.
+     */
+    public function show(Car $car): Response
+    {
+        $this->authorize('view', $car);
+
+        $car->load([
+            'entries.photos',
+            'ownerships.user',
+            'pendingTransfer',
+        ]);
+
+        $car->setRelation(
+            'entries',
+            $car->entries()
+                ->with('photos')
+                ->orderByDesc('date')
+                ->orderByDesc('id')
+                ->get()
+        );
+
+        $isCurrentOwner = $car->user_id === auth()->id();
+
+        /** @var CarOwnership|null $myOwnership */
+        $myOwnership = $car->ownerships->firstWhere('user_id', auth()->id());
+
+        return Inertia::render('garage/show', [
+            'car' => $car,
+            'entries' => $car->entries,
+            'ownerships' => $car->ownerships,
+            'isCurrentOwner' => $isCurrentOwner,
+            'myOwnership' => $myOwnership,
+            'pendingTransfer' => $car->pendingTransfer,
+        ]);
     }
 
     /**

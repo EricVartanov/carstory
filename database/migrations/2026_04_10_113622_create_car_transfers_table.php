@@ -10,19 +10,18 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::create('car_transfers', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('car_id')->constrained()->cascadeOnDelete();
-        $table->foreignId('from_user_id')->constrained('users')->cascadeOnDelete();
-        $table->foreignId('to_user_id')->nullable()->constrained('users')->nullOnDelete();
-        $table->string('token', 64)->unique(); // уникальная ссылка для передачи
-        $table->string('to_email')->nullable(); // email нового владельца
-        $table->enum('status', ['pending', 'accepted', 'cancelled'])->default('pending');
-        $table->timestamp('expires_at')->nullable();
-        $table->timestamps();
-    });
-}
+    {
+        Schema::create('car_transfers', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('car_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('from_user_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('to_user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->string('token', 64)->unique();
+            $table->enum('status', ['pending', 'accepted', 'cancelled'])->default('pending');
+            $table->timestamp('expires_at')->nullable();
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

@@ -13,7 +13,8 @@ export default function VerifyEmail({ status }: { status?: string }) {
 
             {status === 'verification-link-sent' && (
                 <div className="mb-4 text-center text-sm font-medium text-green-600">
-                    Новая ссылка для подтверждения отправлена на почту, указанную при регистрации.
+                    Новая ссылка для подтверждения отправлена на почту,
+                    указанную при регистрации.
                 </div>
             )}
 
@@ -40,5 +41,6 @@ export default function VerifyEmail({ status }: { status?: string }) {
 
 VerifyEmail.layout = {
     title: 'Подтвердите почту',
-    description: 'Перейдите по ссылке из письма, которое мы отправили на вашу почту.',
+    description:
+        'Перейдите по ссылке из письма, которое мы отправили на вашу почту.',
 };

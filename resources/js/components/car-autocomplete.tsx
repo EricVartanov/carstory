@@ -12,13 +12,21 @@ type CatalogItem = {
 
 type InitialValue = CatalogItem | string | null | undefined;
 
-function normalizeInitialValue(value: InitialValue): { selected: CatalogItem | null; text: string; isManual: boolean } {
+function normalizeInitialValue(value: InitialValue): {
+    selected: CatalogItem | null;
+    text: string;
+    isManual: boolean;
+} {
     if (value === null || value === undefined) {
         return { selected: null, text: '', isManual: false };
     }
 
     if (typeof value === 'string') {
-        return { selected: null, text: value, isManual: value.trim().length > 0 };
+        return {
+            selected: null,
+            text: value,
+            isManual: value.trim().length > 0,
+        };
     }
 
     return { selected: value, text: value.name, isManual: false };
@@ -57,22 +65,44 @@ export function CarAutocomplete({
     initialBrand,
     initialModel,
 }: {
-    onBrandSelect: (brand: CatalogItem | null, meta: { isManual: boolean; text: string }) => void;
-    onModelSelect: (model: CatalogItem | null, meta: { isManual: boolean; text: string }) => void;
+    onBrandSelect: (
+        brand: CatalogItem | null,
+        meta: { isManual: boolean; text: string },
+    ) => void;
+    onModelSelect: (
+        model: CatalogItem | null,
+        meta: { isManual: boolean; text: string },
+    ) => void;
     initialBrand?: InitialValue;
     initialModel?: InitialValue;
 }) {
-    const initialBrandNormalized = React.useMemo(() => normalizeInitialValue(initialBrand), [initialBrand]);
-    const initialModelNormalized = React.useMemo(() => normalizeInitialValue(initialModel), [initialModel]);
+    const initialBrandNormalized = React.useMemo(
+        () => normalizeInitialValue(initialBrand),
+        [initialBrand],
+    );
+    const initialModelNormalized = React.useMemo(
+        () => normalizeInitialValue(initialModel),
+        [initialModel],
+    );
 
-    const [brandText, setBrandText] = React.useState(initialBrandNormalized.text);
-    const [modelText, setModelText] = React.useState(initialModelNormalized.text);
+    const [brandText, setBrandText] = React.useState(
+        initialBrandNormalized.text,
+    );
+    const [modelText, setModelText] = React.useState(
+        initialModelNormalized.text,
+    );
 
-    const [selectedBrand, setSelectedBrand] = React.useState<CatalogItem | null>(initialBrandNormalized.selected);
-    const [selectedModel, setSelectedModel] = React.useState<CatalogItem | null>(initialModelNormalized.selected);
+    const [selectedBrand, setSelectedBrand] =
+        React.useState<CatalogItem | null>(initialBrandNormalized.selected);
+    const [selectedModel, setSelectedModel] =
+        React.useState<CatalogItem | null>(initialModelNormalized.selected);
 
-    const [brandManual, setBrandManual] = React.useState(initialBrandNormalized.isManual);
-    const [modelManual, setModelManual] = React.useState(initialModelNormalized.isManual);
+    const [brandManual, setBrandManual] = React.useState(
+        initialBrandNormalized.isManual,
+    );
+    const [modelManual, setModelManual] = React.useState(
+        initialModelNormalized.isManual,
+    );
 
     const [brandOpen, setBrandOpen] = React.useState(false);
     const [modelOpen, setModelOpen] = React.useState(false);
@@ -87,12 +117,18 @@ export function CarAutocomplete({
     const debouncedModelText = useDebouncedValue(modelText, 300);
 
     React.useEffect(() => {
-        onBrandSelect(selectedBrand, { isManual: brandManual, text: brandText });
+        onBrandSelect(selectedBrand, {
+            isManual: brandManual,
+            text: brandText,
+        });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedBrand, brandManual]);
 
     React.useEffect(() => {
-        onModelSelect(selectedModel, { isManual: modelManual, text: modelText });
+        onModelSelect(selectedModel, {
+            isManual: modelManual,
+            text: modelText,
+        });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedModel, modelManual]);
 
@@ -112,7 +148,9 @@ export function CarAutocomplete({
         const controller = new AbortController();
         setBrandLoading(true);
 
-        const url = brands.url({ query: { search: debouncedBrandText.trim() } });
+        const url = brands.url({
+            query: { search: debouncedBrandText.trim() },
+        });
         fetchJson<CatalogItem[]>(url, controller.signal)
             .then((items) => {
                 setBrandResults(items);
@@ -197,7 +235,12 @@ export function CarAutocomplete({
                 <div className="flex items-center justify-between gap-2">
                     <Label htmlFor="car_brand_autocomplete">Марка</Label>
                     {!brandManual ? (
-                        <Button type="button" variant="ghost" size="sm" onClick={() => setBrandManual(true)}>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setBrandManual(true)}
+                        >
                             Ввести вручную
                         </Button>
                     ) : (
@@ -247,7 +290,7 @@ export function CarAutocomplete({
                     />
 
                     {brandLoading && (
-                        <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+                        <div className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2">
                             <Spinner />
                         </div>
                     )}
@@ -260,7 +303,9 @@ export function CarAutocomplete({
                                         <button
                                             type="button"
                                             className="w-full px-3 py-2 text-left hover:bg-muted"
-                                            onMouseDown={(e) => e.preventDefault()}
+                                            onMouseDown={(e) =>
+                                                e.preventDefault()
+                                            }
                                             onClick={() => selectBrand(b)}
                                         >
                                             {b.name}
@@ -325,37 +370,45 @@ export function CarAutocomplete({
                         onBlur={() => {
                             window.setTimeout(() => setModelOpen(false), 120);
                         }}
-                        placeholder={modelDisabled ? 'Сначала выберите марку' : 'Например: Camry'}
+                        placeholder={
+                            modelDisabled
+                                ? 'Сначала выберите марку'
+                                : 'Например: Camry'
+                        }
                         autoComplete="off"
                     />
 
                     {modelLoading && (
-                        <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+                        <div className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2">
                             <Spinner />
                         </div>
                     )}
 
-                    {modelOpen && !modelManual && modelResults.length > 0 && !modelDisabled && (
-                        <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-md border bg-background shadow-sm">
-                            <ul className="max-h-64 overflow-auto py-1 text-sm">
-                                {modelResults.map((m) => (
-                                    <li key={m.id}>
-                                        <button
-                                            type="button"
-                                            className="w-full px-3 py-2 text-left hover:bg-muted"
-                                            onMouseDown={(e) => e.preventDefault()}
-                                            onClick={() => selectModel(m)}
-                                        >
-                                            {m.name}
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
+                    {modelOpen &&
+                        !modelManual &&
+                        modelResults.length > 0 &&
+                        !modelDisabled && (
+                            <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-md border bg-background shadow-sm">
+                                <ul className="max-h-64 overflow-auto py-1 text-sm">
+                                    {modelResults.map((m) => (
+                                        <li key={m.id}>
+                                            <button
+                                                type="button"
+                                                className="w-full px-3 py-2 text-left hover:bg-muted"
+                                                onMouseDown={(e) =>
+                                                    e.preventDefault()
+                                                }
+                                                onClick={() => selectModel(m)}
+                                            >
+                                                {m.name}
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
                 </div>
             </div>
         </div>
     );
 }
-

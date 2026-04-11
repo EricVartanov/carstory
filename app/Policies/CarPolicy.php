@@ -20,7 +20,13 @@ class CarPolicy
      */
     public function view(User $user, Car $car): bool
     {
-        return $car->user_id === $user->id;
+        if ($car->user_id === $user->id) {
+            return true;
+        }
+
+        return $car->ownerships()
+            ->where('user_id', $user->id)
+            ->exists();
     }
 
     /**

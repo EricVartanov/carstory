@@ -159,7 +159,8 @@ export default function Security({
                     {twoFactorEnabled ? (
                         <div className="flex flex-col items-start justify-start space-y-4">
                             <p className="text-sm text-muted-foreground">
-                                При входе потребуется одноразовый код из приложения-аутентификатора (TOTP) на телефоне.
+                                При входе потребуется одноразовый код из
+                                приложения-аутентификатора (TOTP) на телефоне.
                             </p>
 
                             <div className="relative inline">
@@ -185,7 +186,9 @@ export default function Security({
                     ) : (
                         <div className="flex flex-col items-start justify-start space-y-4">
                             <p className="text-sm text-muted-foreground">
-                                После включения 2FA при входе потребуется одноразовый код из приложения-аутентификатора (TOTP).
+                                После включения 2FA при входе потребуется
+                                одноразовый код из приложения-аутентификатора
+                                (TOTP).
                             </p>
 
                             <div>
