@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileDeleteRequest;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
+use App\Models\Car;
+use App\Models\CarOwnership;
+use App\Models\Entry;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,8 +22,18 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
+        $user = $request->user();
+
         return Inertia::render('settings/profile', [
-            'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
+            'user' => $user,
+            'stats' => [
+                'total_cars' => Car::query()->where('user_id', $user->id)->count(),
+                'previous_cars' => CarOwnership::query()->where('user_id', $user->id)
+                    ->whereNotNull('owned_until')
+                    ->count(),
+                'total_entries' => Entry::query()->where('user_id', $user->id)->count(),
+            ],
+            'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
         ]);
     }

@@ -10,7 +10,7 @@ export type UseAppearanceReturn = {
 };
 
 const listeners = new Set<() => void>();
-let currentAppearance: Appearance = 'system';
+let currentAppearance: Appearance = 'dark';
 
 const prefersDark = (): boolean => {
     if (typeof window === 'undefined') {
@@ -29,12 +29,23 @@ const setCookie = (name: string, value: string, days = 365): void => {
     document.cookie = `${name}=${value};path=/;max-age=${maxAge};SameSite=Lax`;
 };
 
+const CARSTORY_THEME_KEY = 'carstory-theme';
+
 const getStoredAppearance = (): Appearance => {
     if (typeof window === 'undefined') {
-        return 'system';
+        return 'dark';
     }
 
-    return (localStorage.getItem('appearance') as Appearance) || 'system';
+    const fromCarstory = localStorage.getItem(CARSTORY_THEME_KEY) as
+        | 'light'
+        | 'dark'
+        | null;
+
+    if (fromCarstory === 'light' || fromCarstory === 'dark') {
+        return fromCarstory;
+    }
+
+    return (localStorage.getItem('appearance') as Appearance) || 'dark';
 };
 
 const isDarkMode = (appearance: Appearance): boolean => {
@@ -75,9 +86,13 @@ export function initializeTheme(): void {
         return;
     }
 
-    if (!localStorage.getItem('appearance')) {
-        localStorage.setItem('appearance', 'system');
-        setCookie('appearance', 'system');
+    if (
+        !localStorage.getItem('appearance') &&
+        !localStorage.getItem(CARSTORY_THEME_KEY)
+    ) {
+        localStorage.setItem('appearance', 'dark');
+        localStorage.setItem(CARSTORY_THEME_KEY, 'dark');
+        setCookie('appearance', 'dark');
     }
 
     currentAppearance = getStoredAppearance();
@@ -91,7 +106,7 @@ export function useAppearance(): UseAppearanceReturn {
     const appearance: Appearance = useSyncExternalStore(
         subscribe,
         () => currentAppearance,
-        () => 'system',
+        () => 'dark',
     );
 
     const resolvedAppearance: ResolvedAppearance = isDarkMode(appearance)
@@ -103,6 +118,12 @@ export function useAppearance(): UseAppearanceReturn {
 
         // Store in localStorage for client-side persistence...
         localStorage.setItem('appearance', mode);
+
+        if (mode === 'light' || mode === 'dark') {
+            localStorage.setItem(CARSTORY_THEME_KEY, mode);
+        } else {
+            localStorage.removeItem(CARSTORY_THEME_KEY);
+        }
 
         // Store in cookie for SSR...
         setCookie('appearance', mode);

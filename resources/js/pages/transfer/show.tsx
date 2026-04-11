@@ -1,8 +1,15 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useCallback, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import InputError from '@/components/input-error';
+import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatDateRu } from '@/lib/ru';
@@ -86,6 +93,7 @@ export default function TransferShow({ car, transfer, transferUrl }: Props) {
         ) {
             return;
         }
+
         router.post(toUrl(regenerate(car.id)));
     }
 
@@ -97,6 +105,7 @@ export default function TransferShow({ car, transfer, transferUrl }: Props) {
         ) {
             return;
         }
+
         router.delete(toUrl(cancel(car.id)));
     }
 
@@ -119,17 +128,23 @@ export default function TransferShow({ car, transfer, transferUrl }: Props) {
                 </div>
 
                 {expiresLabel ? (
-                    <div className="rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-950 dark:border-yellow-900 dark:bg-yellow-950/40 dark:text-yellow-100">
-                        Ссылка действительна до {expiresLabel}
-                    </div>
+                    <Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/40">
+                        <CardContent className="pt-6 text-sm text-yellow-950 dark:text-yellow-100">
+                            Ссылка действительна до {expiresLabel}
+                        </CardContent>
+                    </Card>
                 ) : null}
 
-                <div className="rounded-md border p-4">
-                    <h2 className="text-sm font-medium">Скопировать ссылку</h2>
-                    <p className="mt-1 font-mono text-xs break-all text-muted-foreground">
-                        {truncateUrl(transferUrl)}
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-sm">
+                            Скопировать ссылку
+                        </CardTitle>
+                        <CardDescription className="font-mono text-xs break-all">
+                            {truncateUrl(transferUrl)}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-wrap gap-2">
                         <Button
                             type="button"
                             variant="secondary"
@@ -148,52 +163,65 @@ export default function TransferShow({ car, transfer, transferUrl }: Props) {
                                 Поделиться
                             </Button>
                         ) : null}
-                    </div>
-                </div>
+                    </CardContent>
+                </Card>
 
-                <div className="rounded-md border p-4">
-                    <h2 className="text-sm font-medium">QR-код</h2>
-                    <div className="mt-3 flex flex-col items-center gap-2">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-sm">QR-код</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex flex-col items-center gap-2">
                         <div className={cn('rounded-md border bg-white p-2')}>
                             <QRCodeSVG value={transferUrl} size={200} />
                         </div>
                         <p className="text-center text-xs text-muted-foreground">
                             Покажите QR-код новому владельцу
                         </p>
-                    </div>
-                </div>
+                    </CardContent>
+                </Card>
 
-                <div className="rounded-md border p-4">
-                    <h2 className="text-sm font-medium">Отправить на email</h2>
-                    <form className="mt-3 grid gap-2" onSubmit={submitEmail}>
-                        <div className="grid gap-2">
-                            <Label htmlFor="transfer-email">Email</Label>
-                            <Input
-                                id="transfer-email"
-                                type="email"
-                                value={emailForm.data.email}
-                                onChange={(e) =>
-                                    emailForm.setData('email', e.target.value)
-                                }
-                                autoComplete="email"
-                                required
-                            />
-                            <InputError message={emailForm.errors.email} />
-                        </div>
-                        <Button
-                            type="submit"
-                            size="sm"
-                            disabled={emailForm.processing}
-                        >
-                            Отправить
-                        </Button>
-                    </form>
-                </div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-sm">
+                            Отправить на email
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <form className="grid gap-2" onSubmit={submitEmail}>
+                            <div className="grid gap-2">
+                                <Label htmlFor="transfer-email">Email</Label>
+                                <Input
+                                    id="transfer-email"
+                                    type="email"
+                                    value={emailForm.data.email}
+                                    onChange={(e) =>
+                                        emailForm.setData(
+                                            'email',
+                                            e.target.value,
+                                        )
+                                    }
+                                    autoComplete="email"
+                                    required
+                                />
+                                <InputError message={emailForm.errors.email} />
+                            </div>
+                            <Button
+                                type="submit"
+                                size="sm"
+                                disabled={emailForm.processing}
+                            >
+                                Отправить
+                            </Button>
+                        </form>
+                    </CardContent>
+                </Card>
 
-                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-950 dark:border-red-900 dark:bg-red-950/30 dark:text-red-100">
-                    ⚠️ После принятия передачи вы не сможете редактировать
-                    историю автомобиля
-                </div>
+                <Card className="border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30">
+                    <CardContent className="pt-6 text-sm text-red-950 dark:text-red-100">
+                        ⚠️ После принятия передачи вы не сможете редактировать
+                        историю автомобиля
+                    </CardContent>
+                </Card>
 
                 <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                     <Button

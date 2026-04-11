@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\Car;
+use App\Models\CarOwnership;
+use App\Models\Entry;
 use App\Models\User;
 
 test('profile page is displayed', function () {
@@ -10,6 +13,41 @@ test('profile page is displayed', function () {
         ->get(route('profile.edit'));
 
     $response->assertOk();
+});
+
+test('profile page includes user statistics', function () {
+    $user = User::factory()->create();
+    $car = Car::factory()->create(['user_id' => $user->id]);
+    Car::factory()->create(['user_id' => $user->id]);
+
+    Entry::query()->create([
+        'car_id' => $car->id,
+        'user_id' => $user->id,
+        'date' => now()->toDateString(),
+        'mileage' => 10_000,
+        'type' => 'note',
+        'title' => 'Тест',
+        'body' => null,
+        'amount' => null,
+        'currency' => 'RUB',
+        'location' => null,
+    ]);
+
+    CarOwnership::query()->create([
+        'car_id' => $car->id,
+        'user_id' => $user->id,
+        'owned_from' => now()->subYear(),
+        'owned_until' => now()->subMonth(),
+    ]);
+
+    $this
+        ->actingAs($user)
+        ->get(route('profile.edit'))
+        ->assertInertia(fn ($page) => $page
+            ->component('settings/profile')
+            ->where('stats.total_cars', 2)
+            ->where('stats.total_entries', 1)
+            ->where('stats.previous_cars', 1));
 });
 
 test('profile information can be updated', function () {

@@ -1,6 +1,8 @@
 import { Head, Link } from '@inertiajs/react';
+import { CardMotion } from '@/components/card-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { create, show } from '@/routes/garage';
 
 type Car = {
@@ -46,19 +48,25 @@ export default function GarageIndex({
                             Пока нет машин.
                         </div>
                     ) : (
-                        cars.map((car) => (
-                            <Link
+                        cars.map((car, index) => (
+                            <CardMotion
                                 key={car.id}
-                                href={show(car.id)}
-                                className="rounded-md border p-4 transition-colors hover:bg-muted/50"
+                                delay={index * 0.05}
+                                className="block"
                             >
-                                <div className="font-medium">
-                                    {car.brand} {car.model}
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                    {car.year}
-                                </div>
-                            </Link>
+                                <Link href={show(car.id)} className="block">
+                                    <Card className="gap-0 py-0 transition-colors hover:bg-muted/50">
+                                        <CardHeader className="gap-1 py-4">
+                                            <CardTitle className="text-base">
+                                                {car.brand} {car.model}
+                                            </CardTitle>
+                                            <p className="text-sm text-muted-foreground">
+                                                {car.year}
+                                            </p>
+                                        </CardHeader>
+                                    </Card>
+                                </Link>
+                            </CardMotion>
                         ))
                     )}
                 </div>
@@ -69,33 +77,44 @@ export default function GarageIndex({
                             Проданные автомобили
                         </h2>
                         <div className="grid gap-2">
-                            {previousCars.map((item) => (
-                                <Link
+                            {previousCars.map((item, index) => (
+                                <CardMotion
                                     key={`${item.car.id}-${item.owned_until}`}
-                                    href={show(item.car.id)}
-                                    className="rounded-md border border-muted bg-muted/20 p-4 opacity-70 grayscale transition-all hover:opacity-90 hover:grayscale-0"
+                                    delay={index * 0.05}
+                                    className="block"
                                 >
-                                    <div className="flex flex-wrap items-start justify-between gap-2">
-                                        <div className="min-w-0 flex-1">
-                                            <div className="font-medium">
-                                                {item.car.brand} {item.car.model}
-                                            </div>
-                                            <div className="text-sm text-muted-foreground">
-                                                {item.car.year}
-                                            </div>
-                                            <p className="mt-2 text-sm text-muted-foreground">
-                                                Владел с {item.owned_from} по{' '}
-                                                {item.owned_until}
-                                            </p>
-                                        </div>
-                                        <Badge
-                                            variant="secondary"
-                                            className="shrink-0 border-destructive/40 bg-destructive/10 text-destructive"
-                                        >
-                                            Продан
-                                        </Badge>
-                                    </div>
-                                </Link>
+                                    <Link
+                                        href={show(item.car.id)}
+                                        className="block"
+                                    >
+                                        <Card className="gap-0 border-muted bg-muted/20 py-0 opacity-70 grayscale transition-all hover:opacity-90 hover:grayscale-0">
+                                            <CardHeader className="py-4">
+                                                <div className="flex flex-wrap items-start justify-between gap-2">
+                                                    <div className="min-w-0 flex-1 space-y-1">
+                                                        <CardTitle className="text-base">
+                                                            {item.car.brand}{' '}
+                                                            {item.car.model}
+                                                        </CardTitle>
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {item.car.year}
+                                                        </p>
+                                                        <p className="mt-2 text-sm text-muted-foreground">
+                                                            Владел с{' '}
+                                                            {item.owned_from} по{' '}
+                                                            {item.owned_until}
+                                                        </p>
+                                                    </div>
+                                                    <Badge
+                                                        variant="secondary"
+                                                        className="shrink-0 border-destructive/40 bg-destructive/10 text-destructive"
+                                                    >
+                                                        Продан
+                                                    </Badge>
+                                                </div>
+                                            </CardHeader>
+                                        </Card>
+                                    </Link>
+                                </CardMotion>
                             ))}
                         </div>
                     </section>

@@ -1,5 +1,5 @@
-import { Link } from '@inertiajs/react';
-import { BookOpen, Car, FolderGit2, LayoutGrid } from 'lucide-react';
+import { Link, router } from '@inertiajs/react';
+import { Car, LayoutGrid, LogOut, User } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -8,13 +8,17 @@ import {
     Sidebar,
     SidebarContent,
     SidebarFooter,
+    SidebarGroup,
+    SidebarGroupContent,
     SidebarHeader,
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes';
+import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
+import { dashboard, logout } from '@/routes';
 import { index } from '@/routes/garage';
+import { edit as profileEdit } from '@/routes/profile';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -28,6 +32,11 @@ const mainNavItems: NavItem[] = [
         href: index(),
         icon: Car,
     },
+    {
+        title: 'Профиль',
+        href: profileEdit(),
+        icon: User,
+    },
 ];
 
 const footerNavItems: NavItem[] = [
@@ -39,6 +48,13 @@ const footerNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
+    const cleanup = useMobileNavigation();
+
+    const handleLogout = () => {
+        cleanup();
+        router.flushAll();
+    };
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -55,6 +71,27 @@ export function AppSidebar() {
 
             <SidebarContent>
                 <NavMain items={mainNavItems} />
+                <SidebarGroup className="px-2">
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild tooltip={{ children: 'Выход' }}>
+                                    <Link
+                                        href={logout()}
+                                        method="post"
+                                        as="button"
+                                        prefetch={false}
+                                        onClick={handleLogout}
+                                        className="cursor-pointer"
+                                    >
+                                        <LogOut />
+                                        <span>Выход</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
             </SidebarContent>
 
             <SidebarFooter>

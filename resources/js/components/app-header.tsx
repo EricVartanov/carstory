@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, Car, Folder, LayoutGrid, Menu, Search } from 'lucide-react';
+import { BookOpen, Car, Folder, LayoutGrid, Menu, Search, User } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import AppLogoIcon from '@/components/app-logo-icon';
 import { Breadcrumbs } from '@/components/breadcrumbs';
@@ -34,6 +34,7 @@ import { useInitials } from '@/hooks/use-initials';
 import { cn, toUrl } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { index } from '@/routes/garage';
+import { edit as profileEdit } from '@/routes/profile';
 import type { BreadcrumbItem, NavItem } from '@/types';
 
 type Props = {
@@ -50,6 +51,11 @@ const mainNavItems: NavItem[] = [
         title: 'Гараж',
         href: index(),
         icon: Car,
+    },
+    {
+        title: 'Профиль',
+        href: profileEdit(),
+        icon: User,
     },
 ];
 

@@ -8,8 +8,17 @@ import {
     Wrench,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { CardMotion } from '@/components/card-motion';
 import InputError from '@/components/input-error';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -27,14 +36,15 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { formatDateRu, formatMileageRu, formatMoneyRu } from '@/lib/ru';
-import { cn, toUrl } from '@/lib/utils';
+import { toUrl } from '@/lib/utils';
+import { destroy as entryDestroy, store as entryStore } from '@/routes/entries';
 import { index as garageIndex, show as garageShow } from '@/routes/garage';
 import {
     create as transferCreate,
     cancel as transferCancel,
 } from '@/routes/transfer';
-import { destroy as entryDestroy, store as entryStore } from '@/routes/entries';
 
 type Car = {
     id: number;
@@ -98,6 +108,22 @@ function EntryTypeIcon({ type }: { type: Entry['type'] }) {
             return <CarIcon className="size-4" />;
         case 'fuel':
             return <Fuel className="size-4" />;
+    }
+}
+
+function entryTypeBadgeMeta(type: Entry['type']): {
+    label: string;
+    variant: 'default' | 'secondary' | 'outline';
+} {
+    switch (type) {
+        case 'note':
+            return { label: 'Заметка', variant: 'secondary' };
+        case 'service':
+            return { label: 'Обслуживание', variant: 'default' };
+        case 'trip':
+            return { label: 'Поездка', variant: 'outline' };
+        case 'fuel':
+            return { label: 'Заправка', variant: 'secondary' };
     }
 }
 
@@ -219,12 +245,9 @@ function EntryModal({
 
                     <div className="grid gap-2">
                         <Label htmlFor="body">Заметка</Label>
-                        <textarea
+                        <Textarea
                             id="body"
-                            className={cn(
-                                'flex min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
-                                'aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40',
-                            )}
+                            className="min-h-24"
                             value={data.body}
                             onChange={(e) => setData('body', e.target.value)}
                         />
@@ -331,93 +354,94 @@ export default function GarageShow({
             <Head title={`${car.brand} ${car.model}`} />
 
             <div className="flex flex-col gap-4 p-4">
-                <div className="rounded-md border">
-                    <div className="flex gap-4 p-4">
-                        <div className="relative size-24 shrink-0 overflow-hidden rounded-md bg-muted sm:size-28">
-                            {car.cover_photo ? (
-                                <img
-                                    src={car.cover_photo}
-                                    alt={`${car.brand} ${car.model}`}
-                                    className="h-full w-full object-cover"
-                                />
-                            ) : (
-                                <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                                    <CarIcon className="size-8" />
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex min-w-0 flex-1 flex-col gap-1">
-                            <div className="text-lg leading-tight font-semibold">
-                                {car.brand} {car.model} {car.year}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                                {[car.plate, car.color]
-                                    .filter(Boolean)
-                                    .join(' • ') || '—'}
+                <Card className="gap-0 py-0">
+                    <CardHeader className="pb-0">
+                        <div className="flex gap-4">
+                            <div className="relative size-24 shrink-0 overflow-hidden rounded-md bg-muted sm:size-28">
+                                {car.cover_photo ? (
+                                    <img
+                                        src={car.cover_photo}
+                                        alt={`${car.brand} ${car.model}`}
+                                        className="h-full w-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                                        <CarIcon className="size-8" />
+                                    </div>
+                                )}
                             </div>
 
-                            <div className="mt-2 flex flex-wrap gap-2">
-                                {isCurrentOwner ? (
-                                    <>
-                                        <Button
-                                            asChild
-                                            size="sm"
-                                            variant="secondary"
-                                        >
-                                            <Link href={garageShow(car.id)}>
-                                                Обновить
-                                            </Link>
-                                        </Button>
+                            <div className="flex min-w-0 flex-1 flex-col gap-1">
+                                <CardTitle className="text-lg leading-tight">
+                                    {car.brand} {car.model} {car.year}
+                                </CardTitle>
+                                <p className="text-sm text-muted-foreground">
+                                    {[car.plate, car.color]
+                                        .filter(Boolean)
+                                        .join(' • ') || '—'}
+                                </p>
 
-                                        {!pendingTransfer ? (
-                                            <Button asChild size="sm">
-                                                <Link
-                                                    href={transferCreate(
-                                                        car.id,
-                                                    )}
-                                                >
-                                                    Передать машину
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                    {isCurrentOwner ? (
+                                        <>
+                                            <Button
+                                                asChild
+                                                size="sm"
+                                                variant="secondary"
+                                            >
+                                                <Link href={garageShow(car.id)}>
+                                                    Обновить
                                                 </Link>
                                             </Button>
-                                        ) : null}
-                                    </>
-                                ) : null}
+
+                                            {!pendingTransfer ? (
+                                                <Button asChild size="sm">
+                                                    <Link
+                                                        href={transferCreate(
+                                                            car.id,
+                                                        )}
+                                                    >
+                                                        Передать машину
+                                                    </Link>
+                                                </Button>
+                                            ) : null}
+                                        </>
+                                    ) : null}
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </CardHeader>
 
                     {isCurrentOwner && pendingTransfer ? (
-                        <div className="border-t bg-yellow-50 p-4 text-sm text-yellow-900 dark:bg-yellow-950/30 dark:text-yellow-200">
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="font-medium">
-                                    Передача ожидает подтверждения
-                                </div>
-                                <Button
-                                    size="sm"
-                                    variant="secondary"
-                                    onClick={() =>
-                                        router.delete(
-                                            toUrl(transferCancel(car.id)),
-                                        )
-                                    }
-                                >
-                                    Отменить
-                                </Button>
+                        <CardFooter className="flex-col items-stretch gap-2 border-t bg-yellow-50 py-4 text-sm text-yellow-900 sm:flex-row sm:items-center sm:justify-between dark:bg-yellow-950/30 dark:text-yellow-200">
+                            <div className="font-medium">
+                                Передача ожидает подтверждения
                             </div>
-                        </div>
+                            <Button
+                                size="sm"
+                                variant="secondary"
+                                className="w-full sm:w-auto"
+                                onClick={() =>
+                                    router.delete(
+                                        toUrl(transferCancel(car.id)),
+                                    )
+                                }
+                            >
+                                Отменить
+                            </Button>
+                        </CardFooter>
                     ) : null}
 
                     {!isCurrentOwner && myOwnership ? (
-                        <div className="border-t bg-blue-50 p-4 text-sm text-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+                        <CardFooter className="border-t bg-blue-50 py-4 text-sm text-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
                             Вы владели этим автомобилем с{' '}
                             {formatDateRu(myOwnership.owned_from)} по{' '}
                             {myOwnership.owned_until
                                 ? formatDateRu(myOwnership.owned_until)
                                 : 'настоящее время'}
-                        </div>
+                        </CardFooter>
                     ) : null}
-                </div>
+                </Card>
 
                 <div className="flex items-center justify-between gap-3">
                     <h2 className="text-base font-semibold">История</h2>
@@ -434,106 +458,141 @@ export default function GarageShow({
                     </div>
                 ) : (
                     <div className="grid gap-3">
-                        {entries.map((entry) => (
-                            <div
-                                key={entry.id}
-                                className="rounded-md border p-4"
-                            >
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="flex min-w-0 items-start gap-3">
-                                        <div className="mt-0.5 text-muted-foreground">
-                                            <EntryTypeIcon type={entry.type} />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <div className="text-sm text-muted-foreground">
-                                                {formatDateRu(entry.date)}
-                                                {entry.mileage !== null
-                                                    ? ` • ${formatMileageRu(entry.mileage)}`
-                                                    : null}
-                                            </div>
-                                            {entry.title ? (
-                                                <div className="mt-1 leading-snug font-medium">
-                                                    {entry.title}
+                        {entries.map((entry, index) => {
+                            const typeMeta = entryTypeBadgeMeta(entry.type);
+
+                            return (
+                                <CardMotion
+                                    key={entry.id}
+                                    delay={index * 0.05}
+                                    className="block"
+                                >
+                                    <Card className="gap-0 py-4">
+                                        <CardHeader className="gap-3 pb-2">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="flex min-w-0 items-start gap-3">
+                                                    <div className="mt-0.5 text-muted-foreground">
+                                                        <EntryTypeIcon
+                                                            type={entry.type}
+                                                        />
+                                                    </div>
+                                                    <div className="min-w-0 space-y-2">
+                                                        <Badge
+                                                            variant={
+                                                                typeMeta.variant
+                                                            }
+                                                            className="font-normal"
+                                                        >
+                                                            {typeMeta.label}
+                                                        </Badge>
+                                                        <div className="text-sm text-muted-foreground">
+                                                            {formatDateRu(
+                                                                entry.date,
+                                                            )}
+                                                            {entry.mileage !==
+                                                            null
+                                                                ? ` • ${formatMileageRu(entry.mileage)}`
+                                                                : null}
+                                                        </div>
+                                                        {entry.title ? (
+                                                            <CardTitle className="text-base leading-snug">
+                                                                {entry.title}
+                                                            </CardTitle>
+                                                        ) : null}
+                                                    </div>
                                                 </div>
-                                            ) : null}
-                                        </div>
-                                    </div>
 
-                                    {isCurrentOwner &&
-                                    authUser &&
-                                    entry.user_id === authUser.id ? (
-                                        <div className="flex shrink-0 items-center gap-1">
-                                            <Button
-                                                size="icon"
-                                                variant="ghost"
-                                                className="h-8 w-8"
-                                                disabled
-                                                title="Редактировать (в разработке)"
-                                            >
-                                                <Pencil className="size-4" />
-                                            </Button>
-                                            <Button
-                                                size="icon"
-                                                variant="ghost"
-                                                className="h-8 w-8"
-                                                onClick={() =>
-                                                    router.delete(
-                                                        toUrl(
-                                                            entryDestroy({
-                                                                car: car.id,
-                                                                entry: entry.id,
-                                                            }),
+                                                {isCurrentOwner &&
+                                                authUser &&
+                                                entry.user_id ===
+                                                    authUser.id ? (
+                                                    <div className="flex shrink-0 items-center gap-1">
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className="h-8 w-8"
+                                                            disabled
+                                                            title="Редактировать (в разработке)"
+                                                        >
+                                                            <Pencil className="size-4" />
+                                                        </Button>
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className="h-8 w-8"
+                                                            onClick={() =>
+                                                                router.delete(
+                                                                    toUrl(
+                                                                        entryDestroy(
+                                                                            {
+                                                                                car: car.id,
+                                                                                entry: entry.id,
+                                                                            },
+                                                                        ),
+                                                                    ),
+                                                                )
+                                                            }
+                                                            title="Удалить"
+                                                        >
+                                                            <Trash2 className="size-4" />
+                                                        </Button>
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        </CardHeader>
+
+                                        {entry.body ? (
+                                            <CardContent className="pt-0 pb-0">
+                                                <div className="text-sm whitespace-pre-wrap">
+                                                    {entry.body}
+                                                </div>
+                                            </CardContent>
+                                        ) : null}
+
+                                        {entry.amount !== null &&
+                                        entry.amount !== '' ? (
+                                            <CardContent className="pt-2 pb-0">
+                                                <div className="text-sm font-medium">
+                                                    {formatMoneyRu(
+                                                        entry.amount,
+                                                        entry.currency ?? 'RUB',
+                                                    )}
+                                                </div>
+                                            </CardContent>
+                                        ) : null}
+
+                                        {entry.photos?.length ? (
+                                            <CardContent className="pt-3 pb-0">
+                                                <div className="grid grid-cols-3 gap-2">
+                                                    {entry.photos.map(
+                                                        (photo) => (
+                                                            <a
+                                                                key={photo.id}
+                                                                href={photo.url}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="block"
+                                                            >
+                                                                <img
+                                                                    src={
+                                                                        photo.url
+                                                                    }
+                                                                    alt={
+                                                                        photo.original_name ??
+                                                                        'Фото'
+                                                                    }
+                                                                    className="aspect-square w-full rounded-md object-cover"
+                                                                />
+                                                            </a>
                                                         ),
-                                                    )
-                                                }
-                                                title="Удалить"
-                                            >
-                                                <Trash2 className="size-4" />
-                                            </Button>
-                                        </div>
-                                    ) : null}
-                                </div>
-
-                                {entry.body ? (
-                                    <div className="mt-3 text-sm whitespace-pre-wrap">
-                                        {entry.body}
-                                    </div>
-                                ) : null}
-
-                                {entry.amount !== null &&
-                                entry.amount !== '' ? (
-                                    <div className="mt-3 text-sm font-medium">
-                                        {formatMoneyRu(
-                                            entry.amount,
-                                            entry.currency ?? 'RUB',
-                                        )}
-                                    </div>
-                                ) : null}
-
-                                {entry.photos?.length ? (
-                                    <div className="mt-3 grid grid-cols-3 gap-2">
-                                        {entry.photos.map((photo) => (
-                                            <a
-                                                key={photo.id}
-                                                href={photo.url}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="block"
-                                            >
-                                                <img
-                                                    src={photo.url}
-                                                    alt={
-                                                        photo.original_name ??
-                                                        'Фото'
-                                                    }
-                                                    className="aspect-square w-full rounded-md object-cover"
-                                                />
-                                            </a>
-                                        ))}
-                                    </div>
-                                ) : null}
-                            </div>
-                        ))}
+                                                    )}
+                                                </div>
+                                            </CardContent>
+                                        ) : null}
+                                    </Card>
+                                </CardMotion>
+                            );
+                        })}
                     </div>
                 )}
 

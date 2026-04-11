@@ -1,7 +1,14 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import InputError from '@/components/input-error';
 import { CarAutocomplete } from '@/components/car-autocomplete';
+import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
@@ -42,28 +49,47 @@ export default function GarageCreate() {
             <Head title="Добавить машину" />
 
             <div className="flex flex-col gap-6 p-4">
-                <div className="flex flex-col gap-1">
-                    <h1 className="text-lg font-semibold">Добавить машину</h1>
-                    <p className="text-sm text-muted-foreground">
-                        Выберите марку/модель из каталога или введите вручную.
-                    </p>
-                </div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Добавить машину</CardTitle>
+                        <CardDescription>
+                            Выберите марку/модель из каталога или введите
+                            вручную.
+                        </CardDescription>
+                    </CardHeader>
+                </Card>
 
                 <form onSubmit={submit} className="grid gap-6">
-                    <CarAutocomplete
-                        initialBrand={data.brand}
-                        initialModel={data.model}
-                        onBrandSelect={(brand: CatalogItem | null, meta) => {
-                            setData('car_brand_id', brand ? brand.id : null);
-                            setData('brand', meta.text);
-                            setData('car_model_id', null);
-                            setData('model', '');
-                        }}
-                        onModelSelect={(model: CatalogItem | null, meta) => {
-                            setData('car_model_id', model ? model.id : null);
-                            setData('model', meta.text);
-                        }}
-                    />
+                    <Card>
+                        <CardContent className="pt-6">
+                            <CarAutocomplete
+                                initialBrand={data.brand}
+                                initialModel={data.model}
+                                onBrandSelect={(
+                                    brand: CatalogItem | null,
+                                    meta,
+                                ) => {
+                                    setData(
+                                        'car_brand_id',
+                                        brand ? brand.id : null,
+                                    );
+                                    setData('brand', meta.text);
+                                    setData('car_model_id', null);
+                                    setData('model', '');
+                                }}
+                                onModelSelect={(
+                                    model: CatalogItem | null,
+                                    meta,
+                                ) => {
+                                    setData(
+                                        'car_model_id',
+                                        model ? model.id : null,
+                                    );
+                                    setData('model', meta.text);
+                                }}
+                            />
+                        </CardContent>
+                    </Card>
 
                     <div className="grid gap-2">
                         <Label htmlFor="year">Год</Label>
