@@ -1,6 +1,8 @@
 import { Head, Link } from '@inertiajs/react';
 import { motion, useInView, useMotionValue, useSpring } from 'framer-motion';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { ThemeToggle } from '@/components/theme-toggle';
 import {
     Accordion,
     AccordionContent,
@@ -197,23 +199,23 @@ export default function Welcome({
                 <link rel="canonical" href={canonical} />
                 <script
                     type="application/ld+json"
-                    // eslint-disable-next-line react/no-danger
                     dangerouslySetInnerHTML={{
                         __html: JSON.stringify(jsonLd),
                     }}
                 />
             </Head>
 
-            <div className="relative min-h-svh overflow-x-hidden bg-background text-foreground">
+            <div className="relative min-h-svh bg-background text-foreground">
                 <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
-                    <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+                    <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6">
                         <Link
                             href={welcome().url}
-                            className="text-lg font-semibold tracking-tight"
+                            className="min-w-0 text-lg font-semibold tracking-tight"
                         >
                             <LogoText />
                         </Link>
                         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                            <ThemeToggle />
                             <Button variant="secondary" size="sm" asChild>
                                 <Link href={login().url}>Войти</Link>
                             </Button>
@@ -228,6 +230,7 @@ export default function Welcome({
                     </div>
                 </header>
 
+                <div className="overflow-x-hidden">
                 <section className="relative overflow-hidden px-4 pb-16 pt-10 sm:px-6 sm:pb-24 sm:pt-16">
                     <div
                         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,hsl(var(--brand-blue)/0.15),transparent_60%)]"
@@ -567,6 +570,7 @@ export default function Welcome({
                         </div>
                     </div>
                 </footer>
+                </div>
             </div>
         </>
     );

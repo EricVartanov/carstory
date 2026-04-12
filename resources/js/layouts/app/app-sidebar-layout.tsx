@@ -17,9 +17,9 @@ export default function AppSidebarLayout({
     return (
         <AppShell variant="sidebar">
             <AppSidebar />
-            <AppContent variant="sidebar" className="overflow-x-hidden">
+            <AppContent variant="sidebar">
                 <AppSidebarHeader breadcrumbs={breadcrumbs} />
-                <div className="pb-16 lg:pb-0">
+                <div className="min-w-0 overflow-x-hidden pb-16 lg:pb-0">
                     <AnimatePresence mode="wait">
                         <PageTransition key={url}>{children}</PageTransition>
                     </AnimatePresence>

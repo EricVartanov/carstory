@@ -1,6 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
 import { Car, User } from 'lucide-react';
-import { ThemeToggle } from '@/components/theme-toggle';
 import { cn } from '@/lib/utils';
 import { index as garageIndex } from '@/routes/garage';
 import { edit as profileEdit } from '@/routes/profile';
@@ -42,38 +41,35 @@ export function BottomNav() {
             className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
             aria-label="Основная навигация"
         >
-            <div className="mx-auto flex max-w-lg items-center gap-2 px-2 pt-1">
-                <div className="flex min-w-0 flex-1 items-stretch justify-around gap-1">
-                    {items.map(({ label, href, icon: Icon, match }) => {
-                        const active = match(pathname);
+            <div className="mx-auto flex max-w-lg items-stretch justify-around gap-1 px-2 pt-1">
+                {items.map(({ label, href, icon: Icon, match }) => {
+                    const active = match(pathname);
 
-                        return (
-                            <Link
-                                key={label}
-                                href={href}
-                                prefetch
+                    return (
+                        <Link
+                            key={label}
+                            href={href}
+                            prefetch
+                            className={cn(
+                                'flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg px-2 py-2 text-xs font-medium transition-colors',
+                                active
+                                    ? 'text-primary'
+                                    : 'text-muted-foreground hover:text-foreground',
+                            )}
+                        >
+                            <Icon
                                 className={cn(
-                                    'flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg px-2 py-2 text-xs font-medium transition-colors',
+                                    'size-6 shrink-0',
                                     active
                                         ? 'text-primary'
-                                        : 'text-muted-foreground hover:text-foreground',
+                                        : 'text-muted-foreground',
                                 )}
-                            >
-                                <Icon
-                                    className={cn(
-                                        'size-6 shrink-0',
-                                        active
-                                            ? 'text-primary'
-                                            : 'text-muted-foreground',
-                                    )}
-                                    strokeWidth={active ? 2.25 : 2}
-                                />
-                                <span className="truncate">{label}</span>
-                            </Link>
-                        );
-                    })}
-                </div>
-                <ThemeToggle />
+                                strokeWidth={active ? 2.25 : 2}
+                            />
+                            <span className="truncate">{label}</span>
+                        </Link>
+                    );
+                })}
             </div>
         </nav>
     );
