@@ -37,10 +37,11 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { getCarColorMeta } from '@/lib/car-colors';
 import { formatDateRu, formatMileageRu, formatMoneyRu } from '@/lib/ru';
 import { toUrl } from '@/lib/utils';
 import { destroy as entryDestroy, store as entryStore } from '@/routes/entries';
-import { index as garageIndex, show as garageShow } from '@/routes/garage';
+import { edit as garageEdit, index as garageIndex } from '@/routes/garage';
 import {
     create as transferCreate,
     cancel as transferCancel,
@@ -375,10 +376,32 @@ export default function GarageShow({
                                 <CardTitle className="text-lg leading-tight">
                                     {car.brand} {car.model} {car.year}
                                 </CardTitle>
-                                <p className="text-sm text-muted-foreground">
-                                    {[car.plate, car.color]
-                                        .filter(Boolean)
-                                        .join(' • ') || '—'}
+                                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                                    {car.plate ? <span>{car.plate}</span> : null}
+                                    {car.plate && car.color ? (
+                                        <span aria-hidden>•</span>
+                                    ) : null}
+                                    {car.color ? (
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <span
+                                                className="inline-block size-3 shrink-0 rounded-full border border-border/50"
+                                                style={{
+                                                    background:
+                                                        getCarColorMeta(
+                                                            car.color,
+                                                        )?.hex ?? 'transparent',
+                                                }}
+                                                aria-hidden
+                                            />
+                                            <span>
+                                                {getCarColorMeta(car.color)
+                                                    ?.name ?? car.color}
+                                            </span>
+                                        </span>
+                                    ) : null}
+                                    {!car.plate && !car.color ? (
+                                        <span>—</span>
+                                    ) : null}
                                 </p>
 
                                 <div className="mt-2 flex flex-wrap gap-2">
@@ -389,7 +412,7 @@ export default function GarageShow({
                                                 size="sm"
                                                 variant="secondary"
                                             >
-                                                <Link href={garageShow(car.id)}>
+                                                <Link href={garageEdit.url(car.id)}>
                                                     Обновить
                                                 </Link>
                                             </Button>

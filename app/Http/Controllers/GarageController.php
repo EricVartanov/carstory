@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreCarRequest;
+use App\Http\Requests\UpdateCarRequest;
 use App\Models\Car;
 use App\Models\CarOwnership;
 use App\Models\User;
@@ -72,6 +73,28 @@ class GarageController extends Controller
     }
 
     /**
+     * Show the form for editing the specified car.
+     */
+    public function edit(Car $car): Response
+    {
+        $this->authorize('update', $car);
+
+        return Inertia::render('garage/edit', [
+            'car' => [
+                'id' => $car->id,
+                'brand_id' => $car->car_brand_id,
+                'brand_name' => $car->brand,
+                'model_id' => $car->car_model_id,
+                'model_name' => $car->model,
+                'year' => (string) $car->year,
+                'vin' => $car->vin ?? '',
+                'plate' => $car->plate ?? '',
+                'color' => $car->color ?? '',
+            ],
+        ]);
+    }
+
+    /**
      * Display the specified car.
      */
     public function show(Car $car): Response
@@ -120,10 +143,10 @@ class GarageController extends Controller
         DB::transaction(function () use ($validated, $request): void {
             $car = Car::create([
                 'user_id' => $request->user()->id,
-                'car_brand_id' => $validated['car_brand_id'] ?? null,
-                'car_model_id' => $validated['car_model_id'] ?? null,
-                'brand' => $validated['brand'],
-                'model' => $validated['model'],
+                'car_brand_id' => $validated['brand_id'] ?? null,
+                'car_model_id' => $validated['model_id'] ?? null,
+                'brand' => $validated['brand_name'],
+                'model' => $validated['model_name'],
                 'year' => $validated['year'],
                 'vin' => $validated['vin'] ?? null,
                 'plate' => $validated['plate'] ?? null,
@@ -140,9 +163,37 @@ class GarageController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => __('Car added.'),
+            'message' => 'Машина добавлена.',
         ]);
 
         return to_route('garage.index');
+    }
+
+    /**
+     * Update the specified car in storage.
+     */
+    public function update(UpdateCarRequest $request, Car $car): RedirectResponse
+    {
+        $this->authorize('update', $car);
+
+        $validated = $request->validated();
+
+        $car->update([
+            'car_brand_id' => $validated['brand_id'] ?? null,
+            'car_model_id' => $validated['model_id'] ?? null,
+            'brand' => $validated['brand_name'],
+            'model' => $validated['model_name'],
+            'year' => $validated['year'],
+            'vin' => $validated['vin'] ?? null,
+            'plate' => $validated['plate'] ?? null,
+            'color' => $validated['color'] ?? null,
+        ]);
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Данные автомобиля обновлены.',
+        ]);
+
+        return to_route('garage.show', $car);
     }
 }

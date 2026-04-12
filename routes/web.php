@@ -12,6 +12,7 @@ Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
 Route::prefix('api')->group(function () {
     Route::get('car-catalog/brands', [CarCatalogController::class, 'brands'])->name('car-catalog.brands');
     Route::get('car-catalog/models', [CarCatalogController::class, 'models'])->name('car-catalog.models');
+    Route::post('car-catalog/suggest', [CarCatalogController::class, 'suggest'])->name('car-catalog.suggest');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -19,8 +20,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('garage', [GarageController::class, 'index'])->name('garage.index');
     Route::get('garage/create', [GarageController::class, 'create'])->name('garage.create');
-    Route::get('garage/{car}', [GarageController::class, 'show'])->name('garage.show');
     Route::post('garage', [GarageController::class, 'store'])->name('garage.store');
+    Route::get('garage/{car}/edit', [GarageController::class, 'edit'])->name('garage.edit');
+    Route::patch('garage/{car}', [GarageController::class, 'update'])->name('garage.update');
+    Route::get('garage/{car}', [GarageController::class, 'show'])->name('garage.show');
 
     Route::scopeBindings()->group(function () {
         Route::post('garage/{car}/entries', [EntryController::class, 'store'])->name('entries.store');

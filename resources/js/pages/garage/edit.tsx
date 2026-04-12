@@ -1,4 +1,4 @@
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import { BrandModelSelect } from '@/components/brand-model-select';
 import type { BrandModelPayload } from '@/components/brand-model-select';
 import { ColorPicker } from '@/components/color-picker';
@@ -14,9 +14,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { index, store } from '@/routes/garage';
+import { toUrl } from '@/lib/utils';
+import { index, update } from '@/routes/garage';
 
-type FormData = {
+type CarFormDefaults = {
+    id: number;
     brand_id: number | null;
     brand_name: string;
     model_id: number | null;
@@ -26,6 +28,8 @@ type FormData = {
     plate: string;
     color: string;
 };
+
+type FormData = Omit<CarFormDefaults, 'id'>;
 
 function applyBrandModel(data: FormData, p: BrandModelPayload): FormData {
     return {
@@ -37,34 +41,33 @@ function applyBrandModel(data: FormData, p: BrandModelPayload): FormData {
     };
 }
 
-export default function GarageCreate() {
-    const { data, setData, processing, errors } = useForm<FormData>({
-        brand_id: null,
-        brand_name: '',
-        model_id: null,
-        model_name: '',
-        year: '',
-        vin: '',
-        plate: '',
-        color: '',
+export default function GarageEdit({ car }: { car: CarFormDefaults }) {
+    const { data, setData, processing, errors, patch } = useForm<FormData>({
+        brand_id: car.brand_id,
+        brand_name: car.brand_name,
+        model_id: car.model_id,
+        model_name: car.model_name,
+        year: car.year,
+        vin: car.vin,
+        plate: car.plate,
+        color: car.color,
     });
 
     function submit(e: React.FormEvent) {
         e.preventDefault();
-        router.post(store().url, data);
+        patch(toUrl(update.url(car.id)));
     }
 
     return (
         <>
-            <Head title="Добавить машину" />
+            <Head title="Редактировать машину" />
 
             <div className="flex flex-col gap-6 p-4">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Добавить машину</CardTitle>
+                        <CardTitle>Редактировать машину</CardTitle>
                         <CardDescription>
-                            Выберите марку и модель из каталога или укажите
-                            вручную.
+                            Обновите данные автомобиля и сохраните изменения.
                         </CardDescription>
                     </CardHeader>
                 </Card>
@@ -73,6 +76,7 @@ export default function GarageCreate() {
                     <Card>
                         <CardContent className="pt-6">
                             <BrandModelSelect
+                                key={car.id}
                                 defaultBrand={
                                     data.brand_id !== null
                                         ? {
@@ -174,14 +178,14 @@ export default function GarageCreate() {
     );
 }
 
-GarageCreate.layout = {
+GarageEdit.layout = {
     breadcrumbs: [
         {
             title: 'Гараж',
             href: index(),
         },
         {
-            title: 'Добавить',
+            title: 'Редактировать',
             href: null,
         },
     ],

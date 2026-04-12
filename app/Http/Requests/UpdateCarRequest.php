@@ -2,9 +2,13 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Car;
+use App\Models\CarModel;
+use App\Support\CarColorIds;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateCarRequest extends FormRequest
 {
@@ -23,18 +27,62 @@ class UpdateCarRequest extends FormRequest
      */
     public function rules(): array
     {
+        /** @var Car $car */
+        $car = $this->route('car');
+
         return [
-            'brand' => ['required', 'string', 'max:255'],
-            'model' => ['required', 'string', 'max:255'],
+            'brand_id' => ['nullable', 'integer', 'exists:car_brands,id'],
+            'brand_name' => ['required', 'string', 'max:255'],
+            'model_id' => ['nullable', 'integer', 'exists:car_models,id'],
+            'model_name' => ['required', 'string', 'max:255'],
             'year' => ['required', 'integer', 'min:1886', 'max:2100'],
             'vin' => [
                 'nullable',
                 'string',
                 'size:17',
-                Rule::unique('cars', 'vin')->ignore($this->route('car')),
+                Rule::unique('cars', 'vin')->ignore($car->id),
             ],
             'plate' => ['nullable', 'string', 'max:255'],
-            'color' => ['nullable', 'string', 'max:255'],
+            'color' => ['nullable', 'string', Rule::in(CarColorIds::IDS)],
         ];
+    }
+
+    /**
+     * Configure the validator instance.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $brandId = $this->input('brand_id');
+            $modelId = $this->input('model_id');
+
+            if ($modelId && ! $brandId) {
+                $validator->errors()->add(
+                    'brand_id',
+                    'Марка обязательна при выборе модели из каталога.',
+                );
+            }
+
+            if ($modelId && $brandId && ! CarModel::query()->whereKey($modelId)->where('car_brand_id', $brandId)->exists()) {
+                $validator->errors()->add(
+                    'model_id',
+                    'Модель не относится к выбранной марке.',
+                );
+            }
+        });
+    }
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('vin') && $this->input('vin') === '') {
+            $this->merge(['vin' => null]);
+        }
+
+        if ($this->has('color') && $this->input('color') === '') {
+            $this->merge(['color' => null]);
+        }
     }
 }

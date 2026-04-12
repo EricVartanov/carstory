@@ -3,6 +3,7 @@ import { CardMotion } from '@/components/card-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { getCarColorMeta } from '@/lib/car-colors';
 import { create, show } from '@/routes/garage';
 
 type Car = {
@@ -63,6 +64,26 @@ export default function GarageIndex({
                                             <p className="text-sm text-muted-foreground">
                                                 {car.year}
                                             </p>
+                                            {car.color ? (
+                                                <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                    <span
+                                                        className="inline-block size-3 shrink-0 rounded-full border border-border/50"
+                                                        style={{
+                                                            background:
+                                                                getCarColorMeta(
+                                                                    car.color,
+                                                                )?.hex ??
+                                                                'transparent',
+                                                        }}
+                                                        aria-hidden
+                                                    />
+                                                    <span>
+                                                        {getCarColorMeta(
+                                                            car.color,
+                                                        )?.name ?? car.color}
+                                                    </span>
+                                                </p>
+                                            ) : null}
                                         </CardHeader>
                                     </Card>
                                 </Link>
@@ -98,6 +119,32 @@ export default function GarageIndex({
                                                         <p className="text-sm text-muted-foreground">
                                                             {item.car.year}
                                                         </p>
+                                                        {item.car.color ? (
+                                                            <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                                <span
+                                                                    className="inline-block size-3 shrink-0 rounded-full border border-border/50"
+                                                                    style={{
+                                                                        background:
+                                                                            getCarColorMeta(
+                                                                                item
+                                                                                    .car
+                                                                                    .color,
+                                                                            )
+                                                                                ?.hex ??
+                                                                            'transparent',
+                                                                    }}
+                                                                    aria-hidden
+                                                                />
+                                                                <span>
+                                                                    {getCarColorMeta(
+                                                                        item.car
+                                                                            .color,
+                                                                    )?.name ??
+                                                                        item.car
+                                                                            .color}
+                                                                </span>
+                                                            </p>
+                                                        ) : null}
                                                         <p className="mt-2 text-sm text-muted-foreground">
                                                             Владел с{' '}
                                                             {item.owned_from} по{' '}
