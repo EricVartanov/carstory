@@ -1,7 +1,7 @@
 <?php
 
 test('inertia root document includes pwa meta tags and apple touch icons', function () {
-    $response = $this->get(route('home'));
+    $response = $this->get(route('welcome'));
 
     $response->assertOk();
     $response->assertSee('name="theme-color"', false);

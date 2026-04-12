@@ -4,12 +4,10 @@ use App\Http\Controllers\Api\CarCatalogController;
 use App\Http\Controllers\CarTransferController;
 use App\Http\Controllers\EntryController;
 use App\Http\Controllers\GarageController;
+use App\Http\Controllers\WelcomeController;
 use Illuminate\Support\Facades\Route;
-use Laravel\Fortify\Features;
 
-Route::inertia('/', 'welcome', [
-    'canRegister' => Features::enabled(Features::registration()),
-])->name('home');
+Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
 
 Route::prefix('api')->group(function () {
     Route::get('car-catalog/brands', [CarCatalogController::class, 'brands'])->name('car-catalog.brands');
