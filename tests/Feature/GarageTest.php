@@ -4,7 +4,10 @@ use App\Models\Car;
 use App\Models\CarBrand;
 use App\Models\CarModel;
 use App\Models\CarOwnership;
+use App\Models\CarTransfer;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('guests are redirected to the login page', function () {
@@ -214,4 +217,158 @@ test('store rejects invalid car color id', function () {
             'color' => 'not-a-valid-color',
         ])
         ->assertSessionHasErrors('color');
+});
+
+test('garage index includes archived cars list', function () {
+    $user = User::factory()->create();
+    $active = Car::factory()->create(['user_id' => $user->id]);
+    $archived = Car::factory()->create(['user_id' => $user->id]);
+    $archived->update([
+        'is_archived' => true,
+        'archived_at' => now(),
+    ]);
+    $archived->delete();
+
+    $this->actingAs($user)
+        ->get(route('garage.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('garage/index')
+            ->has('cars', 1)
+            ->where('cars.0.id', $active->id)
+            ->has('archivedCars', 1)
+            ->where('archivedCars.0.id', $archived->id));
+});
+
+test('owner can archive car without pending transfer', function () {
+    $user = User::factory()->create();
+    $car = Car::factory()->create(['user_id' => $user->id]);
+
+    $this->actingAs($user)
+        ->post(route('garage.archive', $car))
+        ->assertRedirect(route('garage.index'));
+
+    $car->refresh();
+    expect($car->trashed())->toBeTrue()
+        ->and($car->is_archived)->toBeTrue()
+        ->and($car->archived_at)->not->toBeNull();
+});
+
+test('owner cannot archive car with pending transfer', function () {
+    $user = User::factory()->create();
+    $car = Car::factory()->create(['user_id' => $user->id]);
+    CarTransfer::factory()->create([
+        'car_id' => $car->id,
+        'from_user_id' => $user->id,
+        'status' => 'pending',
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('garage.archive', $car))
+        ->assertForbidden();
+
+    expect($car->refresh()->trashed())->toBeFalse();
+});
+
+test('owner can unarchive car', function () {
+    $user = User::factory()->create();
+    $car = Car::factory()->create(['user_id' => $user->id]);
+    $car->update([
+        'is_archived' => true,
+        'archived_at' => now(),
+    ]);
+    $car->delete();
+
+    $this->actingAs($user)
+        ->post(route('garage.unarchive', $car))
+        ->assertRedirect(route('garage.index'));
+
+    $car->refresh();
+    expect($car->trashed())->toBeFalse()
+        ->and($car->is_archived)->toBeFalse()
+        ->and($car->archived_at)->toBeNull();
+});
+
+test('owner can permanently delete archived car', function () {
+    $user = User::factory()->create();
+    $car = Car::factory()->create(['user_id' => $user->id]);
+    $car->update([
+        'is_archived' => true,
+        'archived_at' => now(),
+    ]);
+    $car->delete();
+
+    $this->actingAs($user)
+        ->delete(route('garage.destroy-permanent', $car))
+        ->assertRedirect(route('garage.index'));
+
+    expect(Car::withTrashed()->whereKey($car->id)->exists())->toBeFalse();
+});
+
+test('owner can view soft deleted car in garage show', function () {
+    $user = User::factory()->create();
+    $car = Car::factory()->create(['user_id' => $user->id]);
+    $car->update([
+        'is_archived' => true,
+        'archived_at' => now(),
+    ]);
+    $car->delete();
+
+    $this->actingAs($user)
+        ->get(route('garage.show', $car))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('garage/show')
+            ->where('car.id', $car->id));
+});
+
+test('owner can update car cover photo via dedicated endpoint', function () {
+    Storage::fake('public');
+
+    $user = User::factory()->create();
+    $car = Car::factory()->create(['user_id' => $user->id]);
+
+    $oldFile = UploadedFile::fake()->image('old.jpg', 10, 10);
+    $oldPath = Storage::disk('public')->putFile('cars', $oldFile);
+    $car->update(['cover_photo' => $oldPath]);
+
+    $newFile = UploadedFile::fake()->image('new.jpg', 10, 10);
+
+    $this->actingAs($user)
+        ->from(route('garage.show', $car))
+        ->post(route('garage.update-cover', $car), [
+            'cover_photo' => $newFile,
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('garage.show', $car));
+
+    $car->refresh();
+
+    expect($car->cover_photo)->not->toBe($oldPath)
+        ->and(Storage::disk('public')->exists($oldPath))->toBeFalse()
+        ->and(Storage::disk('public')->exists((string) $car->cover_photo))->toBeTrue();
+});
+
+test('guest cannot update car cover photo', function () {
+    Storage::fake('public');
+    $car = Car::factory()->create();
+    $file = UploadedFile::fake()->image('x.jpg', 10, 10);
+
+    $this->post(route('garage.update-cover', $car), [
+        'cover_photo' => $file,
+    ])->assertRedirect(route('login'));
+});
+
+test('non owner cannot update car cover photo', function () {
+    Storage::fake('public');
+    $owner = User::factory()->create();
+    $stranger = User::factory()->create();
+    $car = Car::factory()->create(['user_id' => $owner->id]);
+    $file = UploadedFile::fake()->image('x.jpg', 10, 10);
+
+    $this->actingAs($stranger)
+        ->post(route('garage.update-cover', $car), [
+            'cover_photo' => $file,
+        ])
+        ->assertForbidden();
 });

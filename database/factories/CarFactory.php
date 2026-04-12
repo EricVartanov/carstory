@@ -34,6 +34,8 @@ class CarFactory extends Factory
             'plate' => $this->faker->optional()->bothify('A###AA##'),
             'color' => $this->faker->optional(0.5)->randomElement(CarColorIds::IDS),
             'cover_photo' => null,
+            'is_archived' => false,
+            'archived_at' => null,
         ];
     }
 }

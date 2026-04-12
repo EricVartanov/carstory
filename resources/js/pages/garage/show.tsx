@@ -1,14 +1,26 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
+    Camera,
     Car as CarIcon,
+    FileText,
     Fuel,
     NotebookPen,
     Pencil,
     Trash2,
     Wrench,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { CardMotion } from '@/components/card-motion';
+import { useMemo, useRef, useState } from 'react';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -39,9 +51,15 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { getCarColorMeta } from '@/lib/car-colors';
 import { formatDateRu, formatMileageRu, formatMoneyRu } from '@/lib/ru';
-import { toUrl } from '@/lib/utils';
+import { storageUrl } from '@/lib/storage';
+import { cn, toUrl } from '@/lib/utils';
 import { destroy as entryDestroy, store as entryStore } from '@/routes/entries';
-import { edit as garageEdit, index as garageIndex } from '@/routes/garage';
+import {
+    archive as garageArchive,
+    edit as garageEdit,
+    index as garageIndex,
+    updateCover as garageUpdateCover,
+} from '@/routes/garage';
 import {
     create as transferCreate,
     cancel as transferCancel,
@@ -56,6 +74,7 @@ type Car = {
     plate: string | null;
     color: string | null;
     cover_photo: string | null;
+    is_archived: boolean;
 };
 
 type EntryPhoto = {
@@ -127,6 +146,17 @@ function entryTypeBadgeMeta(type: Entry['type']): {
             return { label: 'Заправка', variant: 'secondary' };
     }
 }
+
+const HISTORY_FILTERS = [
+    { id: 'all' as const, label: 'Все', icon: null },
+    { id: 'service' as const, label: 'Обслуживание', icon: Wrench },
+    { id: 'trip' as const, label: 'Поездки', icon: CarIcon },
+    { id: 'fuel' as const, label: 'Заправки', icon: Fuel },
+    { id: 'note' as const, label: 'Заметки', icon: FileText },
+    { id: 'photos' as const, label: 'Фото', icon: Camera },
+];
+
+type HistoryFilterId = (typeof HISTORY_FILTERS)[number]['id'];
 
 function EntryModal({
     carId,
@@ -348,7 +378,26 @@ export default function GarageShow({
     pendingTransfer,
 }: Props) {
     const [modalOpen, setModalOpen] = useState(false);
+    const [archiveOpen, setArchiveOpen] = useState(false);
+    const [activeFilter, setActiveFilter] =
+        useState<HistoryFilterId>('all');
+    const coverPhotoInputRef = useRef<HTMLInputElement>(null);
+    const [coverUploading, setCoverUploading] = useState(false);
     const authUser = usePage<PageProps>().props.auth.user;
+
+    const filteredEntries = useMemo(() => {
+        if (activeFilter === 'all') {
+            return entries;
+        }
+
+        if (activeFilter === 'photos') {
+            return entries.filter((e) => (e.photos?.length ?? 0) > 0);
+        }
+
+        return entries.filter((e) => e.type === activeFilter);
+    }, [entries, activeFilter]);
+
+    const coverSrc = storageUrl(car.cover_photo);
 
     return (
         <>
@@ -357,19 +406,73 @@ export default function GarageShow({
             <div className="flex flex-col gap-4 p-4">
                 <Card className="gap-0 py-0">
                     <CardHeader className="pb-0">
-                        <div className="flex gap-4">
-                            <div className="relative size-24 shrink-0 overflow-hidden rounded-md bg-muted sm:size-28">
-                                {car.cover_photo ? (
+                        <div className="flex flex-col gap-4 sm:flex-row">
+                            <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-xl bg-muted sm:max-w-md">
+                                {coverSrc ? (
                                     <img
-                                        src={car.cover_photo}
+                                        src={coverSrc}
                                         alt={`${car.brand} ${car.model}`}
                                         className="h-full w-full object-cover"
                                     />
                                 ) : (
-                                    <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                                        <CarIcon className="size-8" />
+                                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
+                                        <CarIcon className="size-12 text-slate-400" />
                                     </div>
                                 )}
+                                {isCurrentOwner ? (
+                                    <>
+                                        <input
+                                            ref={coverPhotoInputRef}
+                                            type="file"
+                                            name="cover_photo"
+                                            accept="image/*"
+                                            className="sr-only"
+                                            disabled={coverUploading}
+                                            onChange={(e) => {
+                                                const file =
+                                                    e.target.files?.[0] ??
+                                                    null;
+                                                const input = e.target;
+                                                if (!file) {
+                                                    return;
+                                                }
+                                                setCoverUploading(true);
+                                                router.post(
+                                                    toUrl(
+                                                        garageUpdateCover.url(
+                                                            car.id,
+                                                        ),
+                                                    ),
+                                                    { cover_photo: file },
+                                                    {
+                                                        forceFormData: true,
+                                                        preserveScroll: true,
+                                                        onFinish: () => {
+                                                            setCoverUploading(
+                                                                false,
+                                                            );
+                                                            input.value = '';
+                                                        },
+                                                    },
+                                                );
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            disabled={coverUploading}
+                                            onClick={() =>
+                                                coverPhotoInputRef.current?.click()
+                                            }
+                                            className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-lg bg-black/50 px-2 py-1 text-xs text-white transition-opacity hover:bg-black/60 disabled:opacity-50"
+                                        >
+                                            <Camera
+                                                className="size-3.5 shrink-0"
+                                                strokeWidth={2}
+                                            />
+                                            Изменить фото
+                                        </button>
+                                    </>
+                                ) : null}
                             </div>
 
                             <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -413,7 +516,7 @@ export default function GarageShow({
                                                 variant="secondary"
                                             >
                                                 <Link href={garageEdit.url(car.id)}>
-                                                    Обновить
+                                                    Редактировать
                                                 </Link>
                                             </Button>
 
@@ -426,6 +529,19 @@ export default function GarageShow({
                                                     >
                                                         Передать машину
                                                     </Link>
+                                                </Button>
+                                            ) : null}
+
+                                            {!car.is_archived ? (
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() =>
+                                                        setArchiveOpen(true)
+                                                    }
+                                                >
+                                                    В архив
                                                 </Button>
                                             ) : null}
                                         </>
@@ -466,7 +582,7 @@ export default function GarageShow({
                     ) : null}
                 </Card>
 
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <h2 className="text-base font-semibold">История</h2>
                     {isCurrentOwner ? (
                         <Button size="sm" onClick={() => setModalOpen(true)}>
@@ -475,21 +591,71 @@ export default function GarageShow({
                     ) : null}
                 </div>
 
+                {entries.length > 0 ? (
+                    <div className="flex flex-col gap-2">
+                        <div
+                            className="flex gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                            role="tablist"
+                            aria-label="Фильтр записей"
+                        >
+                            {HISTORY_FILTERS.map((f) => {
+                                const Icon = f.icon;
+                                const active = activeFilter === f.id;
+
+                                return (
+                                    <button
+                                        key={f.id}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={active}
+                                        onClick={() => setActiveFilter(f.id)}
+                                        className={cn(
+                                            'inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-1.5 text-sm whitespace-nowrap transition-colors duration-150',
+                                            active
+                                                ? 'bg-primary text-primary-foreground'
+                                                : 'bg-secondary text-secondary-foreground',
+                                        )}
+                                    >
+                                        {Icon ? (
+                                            <Icon className="size-3.5 shrink-0" />
+                                        ) : null}
+                                        {f.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        {activeFilter !== 'all' ? (
+                            <p className="text-sm text-muted-foreground">
+                                Показано {filteredEntries.length} из{' '}
+                                {entries.length} записей
+                            </p>
+                        ) : null}
+                    </div>
+                ) : null}
+
                 {entries.length === 0 ? (
                     <div className="rounded-md border p-4 text-sm text-muted-foreground">
                         История пока пуста. Добавьте первую запись.
                     </div>
                 ) : (
                     <div className="grid gap-3">
-                        {entries.map((entry, index) => {
-                            const typeMeta = entryTypeBadgeMeta(entry.type);
+                        <AnimatePresence mode="popLayout">
+                            {filteredEntries.map((entry, i) => {
+                                const typeMeta = entryTypeBadgeMeta(entry.type);
 
-                            return (
-                                <CardMotion
-                                    key={entry.id}
-                                    delay={index * 0.05}
-                                    className="block"
-                                >
+                                return (
+                                    <motion.div
+                                        key={entry.id}
+                                        layout
+                                        initial={{ opacity: 0, y: 8 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        transition={{
+                                            duration: 0.2,
+                                            delay: i * 0.03,
+                                        }}
+                                        className="block"
+                                    >
                                     <Card className="gap-0 py-4">
                                         <CardHeader className="gap-3 pb-2">
                                             <div className="flex items-start justify-between gap-3">
@@ -613,11 +779,47 @@ export default function GarageShow({
                                             </CardContent>
                                         ) : null}
                                     </Card>
-                                </CardMotion>
-                            );
-                        })}
+                                    </motion.div>
+                                );
+                            })}
+                        </AnimatePresence>
                     </div>
                 )}
+
+                <AlertDialog
+                    open={archiveOpen}
+                    onOpenChange={setArchiveOpen}
+                >
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>
+                                Переместить в архив?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Машина будет скрыта из гаража. Вы сможете
+                                восстановить её в любой момент из раздела
+                                Архив.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Отмена</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={() => {
+                                    router.post(
+                                        toUrl(garageArchive.url(car.id)),
+                                        {},
+                                        {
+                                            onFinish: () =>
+                                                setArchiveOpen(false),
+                                        },
+                                    );
+                                }}
+                            >
+                                В архив
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
 
                 <div className="pt-2">
                     <Button asChild variant="ghost" size="sm">

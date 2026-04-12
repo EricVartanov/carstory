@@ -4,11 +4,13 @@ namespace App\Models;
 
 use Database\Factories\CarFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'user_id',
@@ -21,11 +23,13 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'plate',
     'color',
     'cover_photo',
+    'is_archived',
+    'archived_at',
 ])]
 class Car extends Model
 {
     /** @use HasFactory<CarFactory> */
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     /**
      * @return BelongsTo<User, Car>
@@ -60,6 +64,17 @@ class Car extends Model
     }
 
     /**
+     * @param  Builder<Car>  $query
+     * @return Builder<Car>
+     */
+    public function scopeWithLatestEntry(Builder $query): Builder
+    {
+        return $query->with([
+            'entries' => fn ($q) => $q->latest('date')->limit(1),
+        ]);
+    }
+
+    /**
      * @return BelongsTo<CarBrand, Car>
      */
     public function brandRef(): BelongsTo
@@ -84,6 +99,8 @@ class Car extends Model
     {
         return [
             'year' => 'integer',
+            'is_archived' => 'boolean',
+            'archived_at' => 'datetime',
         ];
     }
 }

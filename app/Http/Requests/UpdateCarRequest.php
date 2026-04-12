@@ -44,6 +44,7 @@ class UpdateCarRequest extends FormRequest
             ],
             'plate' => ['nullable', 'string', 'max:255'],
             'color' => ['nullable', 'string', Rule::in(CarColorIds::IDS)],
+            'cover_photo' => ['nullable', 'image', 'max:5120'],
         ];
     }
 

@@ -1,4 +1,6 @@
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
+import { Car } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { BrandModelSelect } from '@/components/brand-model-select';
 import type { BrandModelPayload } from '@/components/brand-model-select';
 import { ColorPicker } from '@/components/color-picker';
@@ -14,9 +16,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { toUrl } from '@/lib/utils';
 import { index, store } from '@/routes/garage';
 
-type FormData = {
+type FormFields = {
     brand_id: number | null;
     brand_name: string;
     model_id: number | null;
@@ -25,9 +28,10 @@ type FormData = {
     vin: string;
     plate: string;
     color: string;
+    cover_photo: File | null;
 };
 
-function applyBrandModel(data: FormData, p: BrandModelPayload): FormData {
+function applyBrandModel(data: FormFields, p: BrandModelPayload): FormFields {
     return {
         ...data,
         brand_id: p.brand_id,
@@ -38,7 +42,10 @@ function applyBrandModel(data: FormData, p: BrandModelPayload): FormData {
 }
 
 export default function GarageCreate() {
-    const { data, setData, processing, errors } = useForm<FormData>({
+    const coverInputRef = useRef<HTMLInputElement>(null);
+    const [coverPreview, setCoverPreview] = useState<string | null>(null);
+
+    const { data, setData, processing, errors, post } = useForm<FormFields>({
         brand_id: null,
         brand_name: '',
         model_id: null,
@@ -47,11 +54,14 @@ export default function GarageCreate() {
         vin: '',
         plate: '',
         color: '',
+        cover_photo: null,
     });
 
     function submit(e: React.FormEvent) {
         e.preventDefault();
-        router.post(store().url, data);
+        post(toUrl(store.url()), {
+            forceFormData: data.cover_photo !== null,
+        });
     }
 
     return (
@@ -70,6 +80,61 @@ export default function GarageCreate() {
                 </Card>
 
                 <form onSubmit={submit} className="grid gap-6">
+                    <div className="grid gap-2">
+                        <div
+                            className="relative flex aspect-video w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-secondary transition-opacity hover:opacity-95"
+                            onClick={() => coverInputRef.current?.click()}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    coverInputRef.current?.click();
+                                }
+                            }}
+                            role="button"
+                            tabIndex={0}
+                            aria-label="Выбрать фото автомобиля"
+                        >
+                            {coverPreview ? (
+                                <img
+                                    src={coverPreview}
+                                    alt=""
+                                    className="h-full w-full object-cover"
+                                />
+                            ) : (
+                                <Car
+                                    className="size-12 text-muted-foreground"
+                                    strokeWidth={1.25}
+                                />
+                            )}
+                        </div>
+                        <input
+                            ref={coverInputRef}
+                            type="file"
+                            name="cover_photo"
+                            accept="image/*"
+                            className="sr-only"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0] ?? null;
+                                setData('cover_photo', file);
+                                if (!file) {
+                                    setCoverPreview(null);
+                                    return;
+                                }
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                    if (typeof reader.result === 'string') {
+                                        setCoverPreview(reader.result);
+                                    }
+                                };
+                                reader.readAsDataURL(file);
+                            }}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Фото автомобиля (необязательно)
+                        </p>
+                        <InputError message={errors.cover_photo} />
+                    </div>
+
                     <Card>
                         <CardContent className="pt-6">
                             <BrandModelSelect

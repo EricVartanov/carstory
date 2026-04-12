@@ -21,9 +21,27 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('garage', [GarageController::class, 'index'])->name('garage.index');
     Route::get('garage/create', [GarageController::class, 'create'])->name('garage.create');
     Route::post('garage', [GarageController::class, 'store'])->name('garage.store');
-    Route::get('garage/{car}/edit', [GarageController::class, 'edit'])->name('garage.edit');
-    Route::patch('garage/{car}', [GarageController::class, 'update'])->name('garage.update');
-    Route::get('garage/{car}', [GarageController::class, 'show'])->name('garage.show');
+    Route::get('garage/{car}/edit', [GarageController::class, 'edit'])
+        ->name('garage.edit')
+        ->withTrashed();
+    Route::patch('garage/{car}', [GarageController::class, 'update'])
+        ->name('garage.update')
+        ->withTrashed();
+    Route::post('garage/{car}/cover', [GarageController::class, 'updateCover'])
+        ->name('garage.update-cover')
+        ->withTrashed();
+    Route::post('garage/{car}/archive', [GarageController::class, 'archive'])
+        ->name('garage.archive')
+        ->withTrashed();
+    Route::post('garage/{car}/unarchive', [GarageController::class, 'unarchive'])
+        ->name('garage.unarchive')
+        ->withTrashed();
+    Route::delete('garage/{car}/permanent', [GarageController::class, 'destroyPermanent'])
+        ->name('garage.destroy-permanent')
+        ->withTrashed();
+    Route::get('garage/{car}', [GarageController::class, 'show'])
+        ->name('garage.show')
+        ->withTrashed();
 
     Route::scopeBindings()->group(function () {
         Route::post('garage/{car}/entries', [EntryController::class, 'store'])->name('entries.store');

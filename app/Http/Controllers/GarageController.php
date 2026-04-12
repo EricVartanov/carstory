@@ -8,7 +8,9 @@ use App\Models\Car;
 use App\Models\CarOwnership;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -24,9 +26,9 @@ class GarageController extends Controller
 
         $cars = Car::query()
             ->where('user_id', $user->id)
-            ->with([
-                'entries' => fn ($query) => $query->latest('date')->limit(1),
-            ])
+            ->where('is_archived', false)
+            ->withoutTrashed()
+            ->withLatestEntry()
             ->latest()
             ->get([
                 'id',
@@ -40,11 +42,30 @@ class GarageController extends Controller
                 'created_at',
             ]);
 
+        $archivedCars = Car::query()
+            ->where('user_id', $user->id)
+            ->where('is_archived', true)
+            ->onlyTrashed()
+            ->withLatestEntry()
+            ->latest('archived_at')
+            ->get([
+                'id',
+                'brand',
+                'model',
+                'year',
+                'vin',
+                'plate',
+                'color',
+                'cover_photo',
+                'created_at',
+                'archived_at',
+            ]);
+
         $previousCars = CarOwnership::query()
             ->where('user_id', $user->id)
             ->whereNotNull('owned_until')
             ->with([
-                'car' => fn ($query) => $query->with([
+                'car' => fn ($query) => $query->withTrashed()->with([
                     'entries' => fn ($q) => $q->latest('date')->limit(1),
                 ]),
             ])
@@ -60,6 +81,7 @@ class GarageController extends Controller
 
         return Inertia::render('garage/index', [
             'cars' => $cars,
+            'archivedCars' => $archivedCars,
             'previousCars' => $previousCars,
         ]);
     }
@@ -90,6 +112,7 @@ class GarageController extends Controller
                 'vin' => $car->vin ?? '',
                 'plate' => $car->plate ?? '',
                 'color' => $car->color ?? '',
+                'cover_photo' => $car->cover_photo,
             ],
         ]);
     }
@@ -140,7 +163,7 @@ class GarageController extends Controller
 
         $validated = $request->validated();
 
-        DB::transaction(function () use ($validated, $request): void {
+        $car = DB::transaction(function () use ($validated, $request): Car {
             $car = Car::create([
                 'user_id' => $request->user()->id,
                 'car_brand_id' => $validated['brand_id'] ?? null,
@@ -159,7 +182,14 @@ class GarageController extends Controller
                 'owned_from' => now(),
                 'owned_until' => null,
             ]);
+
+            return $car;
         });
+
+        if ($request->hasFile('cover_photo')) {
+            $path = Storage::disk('public')->putFile('cars', $request->file('cover_photo'));
+            $car->update(['cover_photo' => $path]);
+        }
 
         Inertia::flash('toast', [
             'type' => 'success',
@@ -189,11 +219,131 @@ class GarageController extends Controller
             'color' => $validated['color'] ?? null,
         ]);
 
+        if ($request->hasFile('cover_photo')) {
+            if ($car->cover_photo) {
+                Storage::disk('public')->delete($car->cover_photo);
+            }
+
+            $path = Storage::disk('public')->putFile('cars', $request->file('cover_photo'));
+            $car->update(['cover_photo' => $path]);
+        }
+
         Inertia::flash('toast', [
             'type' => 'success',
             'message' => 'Данные автомобиля обновлены.',
         ]);
 
         return to_route('garage.show', $car);
+    }
+
+    /**
+     * Update only the car cover photo.
+     */
+    public function updateCover(Request $request, Car $car): RedirectResponse
+    {
+        $this->authorize('update', $car);
+
+        $request->validate([
+            'cover_photo' => ['required', 'image', 'max:5120'],
+        ]);
+
+        if ($car->cover_photo) {
+            Storage::disk('public')->delete($car->cover_photo);
+        }
+
+        $path = Storage::disk('public')->putFile('cars', $request->file('cover_photo'));
+        $car->update(['cover_photo' => $path]);
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Фото обновлено.',
+        ]);
+
+        return back();
+    }
+
+    /**
+     * Soft-delete the car and mark it archived.
+     */
+    public function archive(Car $car): RedirectResponse
+    {
+        $this->authorize('update', $car);
+
+        abort_unless($car->user_id === auth()->id(), 403);
+
+        if ($car->pendingTransfer !== null) {
+            abort(403, 'Нельзя отправить в архив: ожидается передача автомобиля.');
+        }
+
+        $car->update([
+            'is_archived' => true,
+            'archived_at' => now(),
+        ]);
+
+        $car->delete();
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Автомобиль перемещён в архив',
+        ]);
+
+        return to_route('garage.index');
+    }
+
+    /**
+     * Restore an archived car to the garage.
+     */
+    public function unarchive(Car $car): RedirectResponse
+    {
+        $this->authorize('restore', $car);
+
+        abort_unless($car->user_id === auth()->id(), 403);
+
+        $car->restore();
+
+        $car->update([
+            'is_archived' => false,
+            'archived_at' => null,
+        ]);
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Автомобиль восстановлен из архива',
+        ]);
+
+        return to_route('garage.index');
+    }
+
+    /**
+     * Permanently delete the car and its media.
+     */
+    public function destroyPermanent(Car $car): RedirectResponse
+    {
+        $this->authorize('forceDelete', $car);
+
+        abort_unless($car->user_id === auth()->id(), 403);
+
+        $car->load(['entries.photos']);
+
+        foreach ($car->entries as $entry) {
+            foreach ($entry->photos as $photo) {
+                if ($photo->path) {
+                    Storage::disk('public')->delete($photo->path);
+                }
+            }
+        }
+
+        if ($car->cover_photo) {
+            Storage::disk('public')->delete($car->cover_photo);
+        }
+
+        $car->forceDelete();
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Автомобиль удалён',
+        ]);
+
+        return to_route('garage.index');
     }
 }

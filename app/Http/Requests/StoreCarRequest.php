@@ -35,6 +35,7 @@ class StoreCarRequest extends FormRequest
             'vin' => ['nullable', 'string', 'size:17', 'unique:cars,vin'],
             'plate' => ['nullable', 'string', 'max:255'],
             'color' => ['nullable', 'string', Rule::in(CarColorIds::IDS)],
+            'cover_photo' => ['nullable', 'image', 'max:5120'],
         ];
     }
 

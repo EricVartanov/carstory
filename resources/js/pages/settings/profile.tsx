@@ -1,15 +1,17 @@
-import { Form, Head, Link } from '@inertiajs/react';
-import { useRef } from 'react';
-import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
+import { Form, Head, Link, router, useForm } from '@inertiajs/react';
+import { useEffect, useRef, useState } from 'react';
 import SecurityController from '@/actions/App/Http/Controllers/Settings/SecurityController';
 import DeleteUser from '@/components/delete-user';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
+import { UserAvatar } from '@/components/user-avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { edit } from '@/routes/profile';
+import { storageUrl } from '@/lib/storage';
+import { toUrl } from '@/lib/utils';
+import { avatar as profileAvatar, edit, update as profileUpdate } from '@/routes/profile';
 import { send } from '@/routes/verification';
 import type { User } from '@/types';
 
@@ -32,6 +34,39 @@ export default function Profile({
 }) {
     const passwordInput = useRef<HTMLInputElement>(null);
     const currentPasswordInput = useRef<HTMLInputElement>(null);
+    const avatarInputRef = useRef<HTMLInputElement>(null);
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(() =>
+        storageUrl(user.avatar ?? null),
+    );
+
+    const {
+        data: profileData,
+        setData: setProfileData,
+        patch: patchProfile,
+        processing: profileProcessing,
+        errors: profileErrors,
+    } = useForm({
+        name: user.name,
+        email: user.email,
+    });
+
+    const [avatarUploading, setAvatarUploading] = useState(false);
+    const [avatarFieldError, setAvatarFieldError] = useState<string | null>(
+        null,
+    );
+
+    useEffect(() => {
+        setProfileData('name', user.name);
+        setProfileData('email', user.email);
+        setAvatarPreview(storageUrl(user.avatar ?? null));
+    }, [user.name, user.email, user.avatar, setProfileData]);
+
+    function submitProfile(e: React.FormEvent) {
+        e.preventDefault();
+        patchProfile(toUrl(profileUpdate.url()), {
+            preserveScroll: true,
+        });
+    }
 
     const statCards = [
         {
@@ -87,93 +122,176 @@ export default function Profile({
                         description="Измените имя и адрес электронной почты"
                     />
 
-                    <Form
-                        {...ProfileController.update.form()}
-                        options={{
-                            preserveScroll: true,
-                        }}
+                    <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
+                        <UserAvatar
+                            user={user}
+                            size="lg"
+                            previewUrl={
+                                avatarPreview?.startsWith('data:')
+                                    ? avatarPreview
+                                    : null
+                            }
+                        />
+                        <div className="flex flex-col items-center gap-2 sm:items-start">
+                            <input
+                                ref={avatarInputRef}
+                                type="file"
+                                name="avatar"
+                                accept="image/*"
+                                className="sr-only"
+                                disabled={avatarUploading}
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0] ?? null;
+                                    const input = e.target;
+
+                                    if (!file) {
+                                        setAvatarPreview(
+                                            storageUrl(user.avatar ?? null),
+                                        );
+                                        return;
+                                    }
+
+                                    setAvatarFieldError(null);
+                                    const reader = new FileReader();
+                                    reader.onload = () => {
+                                        if (
+                                            typeof reader.result === 'string'
+                                        ) {
+                                            setAvatarPreview(reader.result);
+                                        }
+                                    };
+                                    reader.readAsDataURL(file);
+
+                                    setAvatarUploading(true);
+                                    router.post(
+                                        toUrl(profileAvatar.url()),
+                                        { avatar: file },
+                                        {
+                                            forceFormData: true,
+                                            preserveScroll: true,
+                                            onSuccess: () => {
+                                                input.value = '';
+                                            },
+                                            onError: (errs) => {
+                                                setAvatarFieldError(
+                                                    errs.avatar ?? null,
+                                                );
+                                                setAvatarPreview(
+                                                    storageUrl(
+                                                        user.avatar ?? null,
+                                                    ),
+                                                );
+                                            },
+                                            onFinish: () => {
+                                                setAvatarUploading(false);
+                                            },
+                                        },
+                                    );
+                                }}
+                            />
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                disabled={avatarUploading}
+                                onClick={() =>
+                                    avatarInputRef.current?.click()
+                                }
+                            >
+                                Изменить фото
+                            </Button>
+                            <p className="text-center text-xs text-muted-foreground sm:text-left">
+                                JPG или PNG, до 2 МБ
+                            </p>
+                        </div>
+                    </div>
+                    <InputError
+                        className="-mt-2"
+                        message={avatarFieldError}
+                    />
+
+                    <form
+                        onSubmit={submitProfile}
                         className="space-y-6"
                     >
-                        {({ processing, errors }) => (
-                            <>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="name">Имя</Label>
+                        <div className="grid gap-2">
+                            <Label htmlFor="name">Имя</Label>
 
-                                    <Input
-                                        id="name"
-                                        className="mt-1 block w-full"
-                                        defaultValue={user.name}
-                                        name="name"
-                                        required
-                                        autoComplete="name"
-                                        placeholder="Ваше имя"
-                                    />
+                            <Input
+                                id="name"
+                                className="mt-1 block w-full"
+                                value={profileData.name}
+                                onChange={(e) =>
+                                    setProfileData('name', e.target.value)
+                                }
+                                name="name"
+                                required
+                                autoComplete="name"
+                                placeholder="Ваше имя"
+                            />
 
-                                    <InputError
-                                        className="mt-2"
-                                        message={errors.name}
-                                    />
-                                </div>
+                            <InputError
+                                className="mt-2"
+                                message={profileErrors.name}
+                            />
+                        </div>
 
-                                <div className="grid gap-2">
-                                    <Label htmlFor="email">
-                                        Электронная почта
-                                    </Label>
+                        <div className="grid gap-2">
+                            <Label htmlFor="email">Электронная почта</Label>
 
-                                    <Input
-                                        id="email"
-                                        type="email"
-                                        className="mt-1 block w-full"
-                                        defaultValue={user.email}
-                                        name="email"
-                                        required
-                                        autoComplete="username"
-                                        placeholder="email@example.com"
-                                    />
+                            <Input
+                                id="email"
+                                type="email"
+                                className="mt-1 block w-full"
+                                value={profileData.email}
+                                onChange={(e) =>
+                                    setProfileData('email', e.target.value)
+                                }
+                                name="email"
+                                required
+                                autoComplete="username"
+                                placeholder="email@example.com"
+                            />
 
-                                    <InputError
-                                        className="mt-2"
-                                        message={errors.email}
-                                    />
-                                </div>
+                            <InputError
+                                className="mt-2"
+                                message={profileErrors.email}
+                            />
+                        </div>
 
-                                {mustVerifyEmail &&
-                                    user.email_verified_at === null && (
-                                        <div>
-                                            <p className="-mt-4 text-sm text-muted-foreground">
-                                                Почта не подтверждена.{' '}
-                                                <Link
-                                                    href={send()}
-                                                    as="button"
-                                                    className="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
-                                                >
-                                                    Нажмите здесь, чтобы
-                                                    отправить письмо ещё раз.
-                                                </Link>
-                                            </p>
+                        {mustVerifyEmail &&
+                            user.email_verified_at === null && (
+                                <div>
+                                    <p className="-mt-4 text-sm text-muted-foreground">
+                                        Почта не подтверждена.{' '}
+                                        <Link
+                                            href={send()}
+                                            as="button"
+                                            className="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+                                        >
+                                            Нажмите здесь, чтобы отправить
+                                            письмо ещё раз.
+                                        </Link>
+                                    </p>
 
-                                            {status ===
-                                                'verification-link-sent' && (
-                                                <div className="mt-2 text-sm font-medium text-green-600">
-                                                    Новая ссылка для
-                                                    подтверждения отправлена на
-                                                    вашу почту.
-                                                </div>
-                                            )}
+                                    {status === 'verification-link-sent' && (
+                                        <div className="mt-2 text-sm font-medium text-green-600">
+                                            Новая ссылка для подтверждения
+                                            отправлена на вашу почту.
                                         </div>
                                     )}
-
-                                <div className="flex items-center gap-4">
-                                    <Button
-                                        disabled={processing}
-                                        data-test="update-profile-button"
-                                    >
-                                        Сохранить
-                                    </Button>
                                 </div>
-                            </>
-                        )}
-                    </Form>
+                            )}
+
+                        <div className="flex items-center gap-4">
+                            <Button
+                                disabled={profileProcessing}
+                                data-test="update-profile-button"
+                            >
+                                Сохранить
+                            </Button>
+                        </div>
+                    </form>
                 </div>
 
                 <div className="space-y-6">
