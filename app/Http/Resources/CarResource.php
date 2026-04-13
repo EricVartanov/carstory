@@ -22,6 +22,14 @@ class CarResource extends JsonResource
             'model' => $this->model,
             'car_brand_id' => $this->car_brand_id,
             'car_model_id' => $this->car_model_id,
+            'car_generation_id' => $this->car_generation_id,
+            'generation' => $this->whenLoaded('generation', fn () => $this->generation
+                ? [
+                    'id' => $this->generation->id,
+                    'name' => $this->generation->name,
+                    'period' => $this->generation->period,
+                ]
+                : null),
             'year' => $this->year,
             'color' => $this->color?->value,
             'plate' => $this->plate,

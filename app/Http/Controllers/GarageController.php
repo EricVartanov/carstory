@@ -32,11 +32,13 @@ class GarageController extends Controller
             ->where('is_archived', false)
             ->withoutTrashed()
             ->withLatestEntry()
+            ->with(['generation'])
             ->latest()
             ->get([
                 'id',
                 'brand',
                 'model',
+                'car_generation_id',
                 'year',
                 'vin',
                 'plate',
@@ -50,11 +52,13 @@ class GarageController extends Controller
             ->where('is_archived', true)
             ->onlyTrashed()
             ->withLatestEntry()
+            ->with(['generation'])
             ->latest('archived_at')
             ->get([
                 'id',
                 'brand',
                 'model',
+                'car_generation_id',
                 'year',
                 'vin',
                 'plate',
@@ -70,6 +74,7 @@ class GarageController extends Controller
             ->with([
                 'car' => fn ($query) => $query->withTrashed()->with([
                     'entries' => fn ($q) => $q->latest('date')->limit(1),
+                    'generation',
                 ]),
             ])
             ->orderByDesc('owned_until')
@@ -104,6 +109,8 @@ class GarageController extends Controller
     {
         $this->authorize('update', $car);
 
+        $car->load(['generation']);
+
         return Inertia::render('garage/edit', [
             'car' => [
                 'id' => $car->id,
@@ -111,6 +118,18 @@ class GarageController extends Controller
                 'brand_name' => $car->brand,
                 'model_id' => $car->car_model_id,
                 'model_name' => $car->model,
+                'car_generation_id' => $car->car_generation_id,
+                'generation' => $car->generation
+                    ? [
+                        'id' => $car->generation->id,
+                        'name' => $car->generation->name,
+                        'gen' => $car->generation->gen,
+                        'start_year' => $car->generation->start_year,
+                        'end_year' => $car->generation->end_year,
+                        'period' => $car->generation->period,
+                        'label' => $car->generation->name.' ('.$car->generation->period.')',
+                    ]
+                    : null,
                 'year' => (string) $car->year,
                 'vin' => $car->vin ?? '',
                 'plate' => $car->plate ?? '',
@@ -131,6 +150,7 @@ class GarageController extends Controller
             'entries.photos',
             'ownerships.user',
             'pendingTransfer',
+            'generation',
         ]);
 
         $car->setRelation(
@@ -176,6 +196,7 @@ class GarageController extends Controller
                 'user_id' => $request->user()->id,
                 'car_brand_id' => $validated['brand_id'] ?? null,
                 'car_model_id' => $validated['model_id'] ?? null,
+                'car_generation_id' => $validated['car_generation_id'] ?? null,
                 'brand' => $validated['brand_name'],
                 'model' => $validated['model_name'],
                 'year' => $validated['year'],
@@ -219,6 +240,7 @@ class GarageController extends Controller
         $car->update([
             'car_brand_id' => $validated['brand_id'] ?? null,
             'car_model_id' => $validated['model_id'] ?? null,
+            'car_generation_id' => $validated['car_generation_id'] ?? null,
             'brand' => $validated['brand_name'],
             'model' => $validated['model_name'],
             'year' => $validated['year'],

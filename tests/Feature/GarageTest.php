@@ -3,6 +3,7 @@
 use App\Enums\CarColor;
 use App\Models\Car;
 use App\Models\CarBrand;
+use App\Models\CarGeneration;
 use App\Models\CarModel;
 use App\Models\CarOwnership;
 use App\Models\CarTransfer;
@@ -150,6 +151,13 @@ test('owner can store a car with catalog ids and color', function () {
         'car_brand_id' => $brand->id,
         'name' => 'ModelY',
     ]);
+    $generation = CarGeneration::query()->create([
+        'car_model_id' => $model->id,
+        'name' => 'ModelY I',
+        'gen' => '1',
+        'start_year' => 2010,
+        'end_year' => 2015,
+    ]);
 
     $this->actingAs($user)
         ->post(route('garage.store'), [
@@ -157,6 +165,7 @@ test('owner can store a car with catalog ids and color', function () {
             'brand_name' => $brand->name,
             'model_id' => $model->id,
             'model_name' => $model->name,
+            'car_generation_id' => $generation->id,
             'year' => 2020,
             'vin' => null,
             'plate' => null,
@@ -167,6 +176,7 @@ test('owner can store a car with catalog ids and color', function () {
     $car = Car::query()->where('user_id', $user->id)->firstOrFail();
     expect($car->car_brand_id)->toBe($brand->id)
         ->and($car->car_model_id)->toBe($model->id)
+        ->and($car->car_generation_id)->toBe($generation->id)
         ->and($car->color)->toBe(CarColor::Blue);
 });
 
@@ -174,6 +184,13 @@ test('owner can update a car and vin unique ignores same car', function () {
     $user = User::factory()->create();
     $brand = CarBrand::query()->create(['name' => 'B']);
     $model = CarModel::query()->create(['car_brand_id' => $brand->id, 'name' => 'M']);
+    $generation = CarGeneration::query()->create([
+        'car_model_id' => $model->id,
+        'name' => 'M I',
+        'gen' => '1',
+        'start_year' => 2000,
+        'end_year' => 2005,
+    ]);
     $car = Car::factory()->create([
         'user_id' => $user->id,
         'vin' => '1HGBH41JXMN109186',
@@ -190,6 +207,7 @@ test('owner can update a car and vin unique ignores same car', function () {
             'brand_name' => $brand->name,
             'model_id' => $model->id,
             'model_name' => $model->name,
+            'car_generation_id' => $generation->id,
             'year' => 2019,
             'vin' => '1HGBH41JXMN109186',
             'plate' => 'A123BC77',
@@ -199,6 +217,7 @@ test('owner can update a car and vin unique ignores same car', function () {
 
     $car->refresh();
     expect($car->year)->toBe(2019)
+        ->and($car->car_generation_id)->toBe($generation->id)
         ->and($car->plate)->toBe('A123BC77')
         ->and($car->color)->toBe(CarColor::Silver);
 });

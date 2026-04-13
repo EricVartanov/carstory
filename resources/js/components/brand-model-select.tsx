@@ -21,7 +21,7 @@ import {
 import { Spinner } from '@/components/ui/spinner';
 import { postJson } from '@/lib/csrf-fetch';
 import { cn } from '@/lib/utils';
-import { brands, models, suggest } from '@/routes/car-catalog';
+import { brands, generations, models, suggest } from '@/routes/car-catalog';
 
 export type BrandModelPayload = {
     brand_id: number | null;
@@ -33,6 +33,16 @@ export type BrandModelPayload = {
 type CatalogItem = { id: number; name: string };
 
 type CatalogDefault = { id: number | null; name: string } | null;
+
+export interface GenerationOption {
+    id: number;
+    name: string;
+    gen: string | null;
+    start_year: number | null;
+    end_year: number | null;
+    period: string;
+    label: string;
+}
 
 async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
     const response = await fetch(url, {
@@ -51,21 +61,30 @@ async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
 export function BrandModelSelect({
     onBrandChange,
     onModelChange,
+    onGenerationChange,
     defaultBrand = null,
     defaultModel = null,
+    defaultGeneration = null,
 }: {
     onBrandChange: (value: BrandModelPayload) => void;
     onModelChange: (value: BrandModelPayload) => void;
+    onGenerationChange: (gen: GenerationOption | null) => void;
     defaultBrand?: CatalogDefault;
     defaultModel?: CatalogDefault;
+    defaultGeneration?: GenerationOption | null;
 }) {
     const [brandCatalog, setBrandCatalog] = React.useState<CatalogItem[]>([]);
     const [modelCatalog, setModelCatalog] = React.useState<CatalogItem[]>([]);
+    const [generationCatalog, setGenerationCatalog] = React.useState<
+        GenerationOption[]
+    >([]);
     const [brandsLoading, setBrandsLoading] = React.useState(true);
     const [modelsLoading, setModelsLoading] = React.useState(false);
+    const [generationsLoading, setGenerationsLoading] = React.useState(false);
 
     const [brandOpen, setBrandOpen] = React.useState(false);
     const [modelOpen, setModelOpen] = React.useState(false);
+    const [generationOpen, setGenerationOpen] = React.useState(false);
 
     const [brandManual, setBrandManual] = React.useState(
         () =>
@@ -97,6 +116,10 @@ export function BrandModelSelect({
         defaultModel?.name ?? '',
     );
 
+    const [generation, setGeneration] = React.useState<GenerationOption | null>(
+        defaultGeneration,
+    );
+
     const [suggestingBrand, setSuggestingBrand] = React.useState(false);
     const [suggestingModel, setSuggestingModel] = React.useState(false);
 
@@ -116,6 +139,11 @@ export function BrandModelSelect({
         if (!brandId || brandManual) {
             setModelCatalog([]);
             setModelsLoading(false);
+            setGenerationCatalog([]);
+            setGenerationsLoading(false);
+            setGeneration(null);
+            setGenerationOpen(false);
+            onGenerationChange(null);
 
             return;
         }
@@ -130,7 +158,57 @@ export function BrandModelSelect({
             .finally(() => setModelsLoading(false));
 
         return () => controller.abort();
-    }, [brandId, brandManual]);
+    }, [brandId, brandManual, onGenerationChange]);
+
+    React.useEffect(() => {
+        if (!modelId || modelManual) {
+            setGenerationCatalog([]);
+            setGenerationsLoading(false);
+            setGeneration(null);
+            setGenerationOpen(false);
+            onGenerationChange(null);
+
+            return;
+        }
+
+        const controller = new AbortController();
+        setGenerationsLoading(true);
+
+        const url = generations.url({ query: { model_id: modelId } });
+        fetchJson<GenerationOption[]>(url, controller.signal)
+            .then((items) => {
+                setGenerationCatalog(items);
+
+                if (items.length === 0) {
+                    setGeneration(null);
+                    onGenerationChange(null);
+
+                    return;
+                }
+
+                if (items.length === 1) {
+                    setGeneration(items[0]);
+                    onGenerationChange(items[0]);
+
+                    return;
+                }
+
+                if (generation && items.some((i) => i.id === generation.id)) {
+                    return;
+                }
+
+                setGeneration(null);
+                onGenerationChange(null);
+            })
+            .catch(() => {
+                setGenerationCatalog([]);
+                setGeneration(null);
+                onGenerationChange(null);
+            })
+            .finally(() => setGenerationsLoading(false));
+
+        return () => controller.abort();
+    }, [modelId, modelManual, generation, onGenerationChange]);
 
     const buildPayload = React.useCallback(
         (overrides: Partial<BrandModelPayload> = {}): BrandModelPayload => ({
@@ -146,6 +224,9 @@ export function BrandModelSelect({
     const modelStepDisabled =
         brandId === null && (!brandManual || brandName.trim() === '');
 
+    const generationStepVisible =
+        modelId !== null && !modelManual && (generationsLoading || generationCatalog.length > 0);
+
     function pickBrandFromCatalog(item: CatalogItem) {
         setBrandManual(false);
         setBrandId(item.id);
@@ -155,6 +236,10 @@ export function BrandModelSelect({
         setModelName('');
         setModelManual(false);
         setModelOpen(false);
+        setGenerationCatalog([]);
+        setGenerationsLoading(false);
+        setGeneration(null);
+        setGenerationOpen(false);
         const payload = buildPayload({
             brand_id: item.id,
             brand_name: item.name,
@@ -163,6 +248,7 @@ export function BrandModelSelect({
         });
         onBrandChange(payload);
         onModelChange(payload);
+        onGenerationChange(null);
     }
 
     function pickModelFromCatalog(item: CatalogItem) {
@@ -170,12 +256,23 @@ export function BrandModelSelect({
         setModelId(item.id);
         setModelName(item.name);
         setModelOpen(false);
+        setGenerationCatalog([]);
+        setGenerationsLoading(false);
+        setGeneration(null);
+        setGenerationOpen(false);
         const payload = buildPayload({
             model_id: item.id,
             model_name: item.name,
         });
         onModelChange(payload);
         onBrandChange(payload);
+        onGenerationChange(null);
+    }
+
+    function pickGenerationFromCatalog(item: GenerationOption) {
+        setGeneration(item);
+        setGenerationOpen(false);
+        onGenerationChange(item);
     }
 
     function switchBrandToManual() {
@@ -186,6 +283,10 @@ export function BrandModelSelect({
         setModelId(null);
         setModelName('');
         setModelManual(true);
+        setGenerationCatalog([]);
+        setGenerationsLoading(false);
+        setGeneration(null);
+        setGenerationOpen(false);
         const payload = buildPayload({
             brand_id: null,
             brand_name: '',
@@ -194,15 +295,21 @@ export function BrandModelSelect({
         });
         onBrandChange(payload);
         onModelChange(payload);
+        onGenerationChange(null);
     }
 
     function switchModelToManual() {
         setModelOpen(false);
         setModelManual(true);
         setModelId(null);
+        setGenerationCatalog([]);
+        setGenerationsLoading(false);
+        setGeneration(null);
+        setGenerationOpen(false);
         const payload = buildPayload({ model_id: null });
         onModelChange(payload);
         onBrandChange(payload);
+        onGenerationChange(null);
     }
 
     function switchBrandToCatalog() {
@@ -212,6 +319,10 @@ export function BrandModelSelect({
         setModelId(null);
         setModelName('');
         setModelManual(false);
+        setGenerationCatalog([]);
+        setGenerationsLoading(false);
+        setGeneration(null);
+        setGenerationOpen(false);
         const cleared = buildPayload({
             brand_id: null,
             brand_name: '',
@@ -220,15 +331,21 @@ export function BrandModelSelect({
         });
         onBrandChange(cleared);
         onModelChange(cleared);
+        onGenerationChange(null);
     }
 
     function switchModelToCatalog() {
         setModelManual(false);
         setModelId(null);
         setModelName('');
+        setGenerationCatalog([]);
+        setGenerationsLoading(false);
+        setGeneration(null);
+        setGenerationOpen(false);
         const payload = buildPayload({ model_id: null, model_name: '' });
         onModelChange(payload);
         onBrandChange(payload);
+        onGenerationChange(null);
     }
 
     async function submitSuggestion(
@@ -499,6 +616,87 @@ export function BrandModelSelect({
                     </Popover>
                 )}
             </div>
+
+            {generationStepVisible ? (
+                <div className="grid gap-2">
+                    <Label>Поколение</Label>
+
+                    {generationCatalog.length === 1 && generationCatalog[0] ? (
+                        <div className="flex h-11 items-center rounded-md border bg-muted/20 px-3 text-sm">
+                            <div className="min-w-0">
+                                <div className="truncate font-medium">
+                                    {generationCatalog[0].name}
+                                </div>
+                                <div className="truncate text-sm text-muted-foreground">
+                                    {generationCatalog[0].period}
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <Popover
+                            open={generationOpen}
+                            onOpenChange={setGenerationOpen}
+                        >
+                            <PopoverTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={generationOpen}
+                                    disabled={generationsLoading}
+                                    className="h-11 w-full justify-between font-normal"
+                                >
+                                    <span className="truncate">
+                                        {generation?.name
+                                            ? generation.name
+                                            : 'Выберите поколение'}
+                                    </span>
+                                    {generationsLoading ? (
+                                        <Spinner className="size-4" />
+                                    ) : (
+                                        <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                                className="w-[min(100vw-2rem,24rem)] p-0"
+                                align="start"
+                            >
+                                <Command shouldFilter>
+                                    <CommandInput placeholder="Поиск поколения…" />
+                                    <CommandList>
+                                        <CommandEmpty>
+                                            Ничего не найдено.
+                                        </CommandEmpty>
+                                        <CommandGroup heading="Поколения">
+                                            {generationCatalog.map((g) => (
+                                                <CommandItem
+                                                    key={g.id}
+                                                    value={g.label}
+                                                    onSelect={() =>
+                                                        pickGenerationFromCatalog(
+                                                            g,
+                                                        )
+                                                    }
+                                                >
+                                                    <div className="min-w-0">
+                                                        <div className="truncate">
+                                                            {g.name}
+                                                        </div>
+                                                        <div className="truncate text-sm text-muted-foreground">
+                                                            {g.period}
+                                                        </div>
+                                                    </div>
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                    )}
+                </div>
+            ) : null}
         </div>
     );
 }

@@ -12,6 +12,7 @@ Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
 Route::prefix('api')->group(function () {
     Route::get('car-catalog/brands', [CarCatalogController::class, 'brands'])->name('car-catalog.brands');
     Route::get('car-catalog/models', [CarCatalogController::class, 'models'])->name('car-catalog.models');
+    Route::get('car-catalog/generations', [CarCatalogController::class, 'generations'])->name('car-catalog.generations');
     Route::post('car-catalog/suggest', [CarCatalogController::class, 'suggest'])->name('car-catalog.suggest');
 });
 

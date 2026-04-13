@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\CarColor;
 use App\Models\Car;
+use App\Models\CarGeneration;
 use App\Models\CarModel;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -35,6 +36,7 @@ class UpdateCarRequest extends FormRequest
             'brand_name' => ['required', 'string', 'max:255'],
             'model_id' => ['nullable', 'integer', 'exists:car_models,id'],
             'model_name' => ['required', 'string', 'max:255'],
+            'car_generation_id' => ['nullable', 'integer', 'exists:car_generations,id'],
             'year' => ['required', 'integer', 'min:1886', 'max:2100'],
             'vin' => [
                 'nullable',
@@ -56,6 +58,7 @@ class UpdateCarRequest extends FormRequest
         $validator->after(function (Validator $validator): void {
             $brandId = $this->input('brand_id');
             $modelId = $this->input('model_id');
+            $generationId = $this->input('car_generation_id');
 
             if ($modelId && ! $brandId) {
                 $validator->errors()->add(
@@ -68,6 +71,20 @@ class UpdateCarRequest extends FormRequest
                 $validator->errors()->add(
                     'model_id',
                     'Модель не относится к выбранной марке.',
+                );
+            }
+
+            if ($generationId && ! $modelId) {
+                $validator->errors()->add(
+                    'model_id',
+                    'Модель обязательна при выборе поколения.',
+                );
+            }
+
+            if ($generationId && $modelId && ! CarGeneration::query()->whereKey($generationId)->where('car_model_id', $modelId)->exists()) {
+                $validator->errors()->add(
+                    'car_generation_id',
+                    'Поколение не относится к выбранной модели.',
                 );
             }
         });

@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'user_id',
     'car_brand_id',
     'car_model_id',
+    'car_generation_id',
     'brand',
     'model',
     'year',
@@ -90,6 +91,14 @@ class Car extends Model
     public function modelRef(): BelongsTo
     {
         return $this->belongsTo(CarModel::class, 'car_model_id');
+    }
+
+    /**
+     * @return BelongsTo<CarGeneration, Car>
+     */
+    public function generation(): BelongsTo
+    {
+        return $this->belongsTo(CarGeneration::class, 'car_generation_id');
     }
 
     /**

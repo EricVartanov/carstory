@@ -34,6 +34,8 @@ type Car = {
     id: number;
     brand: string;
     model: string;
+    car_generation_id?: number | null;
+    generation?: { id: number; name: string; period: string } | null;
     year: number;
     vin: string | null;
     plate: string | null;
@@ -134,6 +136,11 @@ export default function GarageIndex({
                                             <CardTitle className="text-sm font-medium leading-snug">
                                                 {car.brand} {car.model}
                                             </CardTitle>
+                                            {car.generation?.name ? (
+                                                <p className="text-xs text-muted-foreground">
+                                                    {car.generation.name}
+                                                </p>
+                                            ) : null}
                                             <p className="text-xs text-muted-foreground">
                                                 {yearAndPlate(car)}
                                             </p>
@@ -203,6 +210,15 @@ export default function GarageIndex({
                                                                 item.car,
                                                             )}
                                                         </p>
+                                                        {item.car.generation?.name ? (
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {
+                                                                    item.car
+                                                                        .generation
+                                                                        .name
+                                                                }
+                                                            </p>
+                                                        ) : null}
                                                         {item.car.color ? (
                                                             <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                                                                 {(() => {
@@ -297,6 +313,11 @@ export default function GarageIndex({
                                                     <p className="text-xs text-muted-foreground">
                                                         {yearAndPlate(car)}
                                                     </p>
+                                                    {car.generation?.name ? (
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {car.generation.name}
+                                                        </p>
+                                                    ) : null}
                                                 </div>
                                                 <Badge variant="secondary">
                                                     В архиве

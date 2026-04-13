@@ -3,6 +3,7 @@ import { Car } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { BrandModelSelect } from '@/components/brand-model-select';
 import type { BrandModelPayload } from '@/components/brand-model-select';
+import type { GenerationOption } from '@/components/brand-model-select';
 import { ColorPicker } from '@/components/color-picker';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,8 @@ type CarFormDefaults = {
     brand_name: string;
     model_id: number | null;
     model_name: string;
+    car_generation_id: number | null;
+    generation: GenerationOption | null;
     year: string;
     vin: string;
     plate: string;
@@ -34,8 +37,9 @@ type CarFormDefaults = {
     cover_photo: string | null;
 };
 
-type FormFields = Omit<CarFormDefaults, 'id' | 'cover_photo'> & {
+type FormFields = Omit<CarFormDefaults, 'id' | 'cover_photo' | 'generation'> & {
     cover_photo: File | null;
+    generation_name: string | null;
 };
 
 function applyBrandModel(data: FormFields, p: BrandModelPayload): FormFields {
@@ -45,6 +49,8 @@ function applyBrandModel(data: FormFields, p: BrandModelPayload): FormFields {
         brand_name: p.brand_name,
         model_id: p.model_id,
         model_name: p.model_name,
+        car_generation_id: null,
+        generation_name: null,
     };
 }
 
@@ -60,6 +66,8 @@ export default function GarageEdit({ car }: { car: CarFormDefaults }) {
         brand_name: car.brand_name,
         model_id: car.model_id,
         model_name: car.model_name,
+        car_generation_id: car.car_generation_id,
+        generation_name: car.generation?.name ?? null,
         year: car.year,
         vin: car.vin,
         plate: car.plate,
@@ -204,6 +212,18 @@ export default function GarageEdit({ car }: { car: CarFormDefaults }) {
                                                     applyBrandModel(d, p),
                                                 )
                                             }
+                                            defaultGeneration={car.generation}
+                                            onGenerationChange={(
+                                                gen: GenerationOption | null,
+                                            ) =>
+                                                setData((d) => ({
+                                                    ...d,
+                                                    car_generation_id:
+                                                        gen?.id ?? null,
+                                                    generation_name:
+                                                        gen?.name ?? null,
+                                                }))
+                                            }
                                         />
                                         <InputError
                                             className="mt-2"
@@ -213,6 +233,9 @@ export default function GarageEdit({ car }: { car: CarFormDefaults }) {
                                         <InputError message={errors.model_id} />
                                         <InputError
                                             message={errors.model_name}
+                                        />
+                                        <InputError
+                                            message={errors.car_generation_id}
                                         />
                                     </div>
 

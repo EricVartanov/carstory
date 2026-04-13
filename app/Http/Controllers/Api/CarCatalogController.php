@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\CarBrand;
 use App\Models\CarCatalogSuggestion;
+use App\Models\CarGeneration;
 use App\Models\CarModel;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,6 +33,15 @@ class CarCatalogController extends Controller
             ->get(['id', 'name']);
 
         return response()->json($models);
+    }
+
+    public function generations(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'model_id' => ['required', 'integer', 'exists:car_models,id'],
+        ]);
+
+        return response()->json(CarGeneration::forFrontend((int) $validated['model_id']));
     }
 
     public function suggest(Request $request): JsonResponse

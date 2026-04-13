@@ -3,6 +3,7 @@ import { Car } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { BrandModelSelect } from '@/components/brand-model-select';
 import type { BrandModelPayload } from '@/components/brand-model-select';
+import type { GenerationOption } from '@/components/brand-model-select';
 import { ColorPicker } from '@/components/color-picker';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,8 @@ type FormFields = {
     brand_name: string;
     model_id: number | null;
     model_name: string;
+    car_generation_id: number | null;
+    generation_name: string | null;
     year: string;
     vin: string;
     plate: string;
@@ -39,6 +42,8 @@ function applyBrandModel(data: FormFields, p: BrandModelPayload): FormFields {
         brand_name: p.brand_name,
         model_id: p.model_id,
         model_name: p.model_name,
+        car_generation_id: null,
+        generation_name: null,
     };
 }
 
@@ -52,6 +57,8 @@ export default function GarageCreate() {
         brand_name: '',
         model_id: null,
         model_name: '',
+        car_generation_id: null,
+        generation_name: null,
         year: '',
         vin: '',
         plate: '',
@@ -194,6 +201,17 @@ export default function GarageCreate() {
                                                     applyBrandModel(d, p),
                                                 )
                                             }
+                                            onGenerationChange={(
+                                                gen: GenerationOption | null,
+                                            ) =>
+                                                setData((d) => ({
+                                                    ...d,
+                                                    car_generation_id:
+                                                        gen?.id ?? null,
+                                                    generation_name:
+                                                        gen?.name ?? null,
+                                                }))
+                                            }
                                         />
                                         <InputError
                                             className="mt-2"
@@ -203,6 +221,9 @@ export default function GarageCreate() {
                                         <InputError message={errors.model_id} />
                                         <InputError
                                             message={errors.model_name}
+                                        />
+                                        <InputError
+                                            message={errors.car_generation_id}
                                         />
                                     </div>
 

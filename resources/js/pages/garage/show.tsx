@@ -72,6 +72,7 @@ type Car = {
     color: string | null;
     cover_photo: string | null;
     is_archived: boolean;
+    generation?: { id: number; name: string; period: string } | null;
 };
 
 type EntryPhoto = {
@@ -473,6 +474,12 @@ export default function GarageShow({
                                 <CardTitle className="text-lg leading-tight">
                                     {car.brand} {car.model} {car.year}
                                 </CardTitle>
+                                {car.generation?.name ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        {car.generation.name} ·{' '}
+                                        {car.generation.period}
+                                    </p>
+                                ) : null}
                                 <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
                                     {car.plate ? <span>{car.plate}</span> : null}
                                     {car.plate && car.color ? (
