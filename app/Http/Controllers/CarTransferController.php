@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\CarTransferStatus;
 use App\Mail\TransferInvitation;
 use App\Models\Car;
 use App\Models\CarOwnership;
@@ -29,7 +30,7 @@ class CarTransferController extends Controller
             'transfer' => [
                 'id' => $transfer->id,
                 'token' => $transfer->token,
-                'status' => $transfer->status,
+                'status' => $transfer->status->value,
                 'expires_at' => $transfer->expires_at?->toIso8601String(),
             ],
             'transferUrl' => $transferUrl,
@@ -61,7 +62,7 @@ class CarTransferController extends Controller
     {
         $transfer = CarTransfer::query()
             ->where('token', $token)
-            ->where('status', 'pending')
+            ->where('status', CarTransferStatus::Pending->value)
             ->first();
 
         if ($transfer === null) {
@@ -74,7 +75,7 @@ class CarTransferController extends Controller
         }
 
         if ($transfer->expires_at !== null && $transfer->expires_at->isPast()) {
-            $transfer->update(['status' => 'cancelled']);
+            $transfer->update(['status' => CarTransferStatus::Cancelled->value]);
 
             Inertia::flash('toast', [
                 'type' => 'error',
@@ -112,7 +113,7 @@ class CarTransferController extends Controller
         return DB::transaction(function () use ($token): RedirectResponse {
             $transfer = CarTransfer::query()
                 ->where('token', $token)
-                ->where('status', 'pending')
+                ->where('status', CarTransferStatus::Pending->value)
                 ->lockForUpdate()
                 ->first();
 
@@ -126,7 +127,7 @@ class CarTransferController extends Controller
             }
 
             if ($transfer->expires_at !== null && $transfer->expires_at->isPast()) {
-                $transfer->update(['status' => 'cancelled']);
+                $transfer->update(['status' => CarTransferStatus::Cancelled->value]);
 
                 Inertia::flash('toast', [
                     'type' => 'error',
@@ -171,7 +172,7 @@ class CarTransferController extends Controller
             ]);
 
             $transfer->update([
-                'status' => 'accepted',
+                'status' => CarTransferStatus::Accepted->value,
                 'to_user_id' => auth()->id(),
             ]);
 
@@ -190,8 +191,8 @@ class CarTransferController extends Controller
 
         CarTransfer::query()
             ->where('car_id', $car->id)
-            ->where('status', 'pending')
-            ->update(['status' => 'cancelled']);
+            ->where('status', CarTransferStatus::Pending->value)
+            ->update(['status' => CarTransferStatus::Cancelled->value]);
 
         return to_route('garage.show', $car);
     }
@@ -202,8 +203,8 @@ class CarTransferController extends Controller
 
         CarTransfer::query()
             ->where('car_id', $car->id)
-            ->where('status', 'pending')
-            ->update(['status' => 'cancelled']);
+            ->where('status', CarTransferStatus::Pending->value)
+            ->update(['status' => CarTransferStatus::Cancelled->value]);
 
         return to_route('transfer.create', $car);
     }
@@ -212,7 +213,7 @@ class CarTransferController extends Controller
     {
         $existing = CarTransfer::query()
             ->where('car_id', $car->id)
-            ->where('status', 'pending')
+            ->where('status', CarTransferStatus::Pending->value)
             ->first();
 
         if ($existing !== null) {
@@ -224,7 +225,7 @@ class CarTransferController extends Controller
             'from_user_id' => auth()->id(),
             'to_user_id' => null,
             'token' => Str::random(64),
-            'status' => 'pending',
+            'status' => CarTransferStatus::Pending->value,
             'expires_at' => now()->addDays(7),
         ]);
     }

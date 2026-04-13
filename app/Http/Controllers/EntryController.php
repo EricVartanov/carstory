@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Currency;
+use App\Enums\EntryType;
 use App\Models\Car;
 use App\Models\Entry;
 use App\Models\EntryPhoto;
@@ -20,11 +22,11 @@ class EntryController extends Controller
         $validated = $request->validate([
             'date' => ['required', 'date'],
             'mileage' => ['nullable', 'integer', 'min:0'],
-            'type' => ['required', Rule::in(['note', 'service', 'trip', 'fuel'])],
+            'type' => ['required', Rule::enum(EntryType::class)],
             'title' => ['nullable', 'string', 'max:255'],
             'body' => ['nullable', 'string'],
             'amount' => ['nullable', 'numeric', 'min:0'],
-            'currency' => ['nullable', Rule::in(['RUB', 'AMD', 'KZT', 'UAH', 'BYN', 'USD'])],
+            'currency' => ['nullable', Rule::enum(Currency::class)],
             'photos.*' => ['nullable', 'image', 'max:10240'],
         ]);
 
@@ -68,11 +70,11 @@ class EntryController extends Controller
         $validated = $request->validate([
             'date' => ['required', 'date'],
             'mileage' => ['nullable', 'integer', 'min:0'],
-            'type' => ['required', Rule::in(['note', 'service', 'trip', 'fuel'])],
+            'type' => ['required', Rule::enum(EntryType::class)],
             'title' => ['nullable', 'string', 'max:255'],
             'body' => ['nullable', 'string'],
             'amount' => ['nullable', 'numeric', 'min:0'],
-            'currency' => ['nullable', Rule::in(['RUB', 'AMD', 'KZT', 'UAH', 'BYN', 'USD'])],
+            'currency' => ['nullable', Rule::enum(Currency::class)],
             'photos.*' => ['nullable', 'image', 'max:10240'],
         ]);
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\CarColor;
 use App\Models\Car;
 use App\Models\CarBrand;
 use App\Models\CarModel;
@@ -166,7 +167,7 @@ test('owner can store a car with catalog ids and color', function () {
     $car = Car::query()->where('user_id', $user->id)->firstOrFail();
     expect($car->car_brand_id)->toBe($brand->id)
         ->and($car->car_model_id)->toBe($model->id)
-        ->and($car->color)->toBe('blue');
+        ->and($car->color)->toBe(CarColor::Blue);
 });
 
 test('owner can update a car and vin unique ignores same car', function () {
@@ -199,7 +200,7 @@ test('owner can update a car and vin unique ignores same car', function () {
     $car->refresh();
     expect($car->year)->toBe(2019)
         ->and($car->plate)->toBe('A123BC77')
-        ->and($car->color)->toBe('silver');
+        ->and($car->color)->toBe(CarColor::Silver);
 });
 
 test('store rejects invalid car color id', function () {

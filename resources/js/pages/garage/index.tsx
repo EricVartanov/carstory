@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Car, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { CardMotion } from '@/components/card-motion';
@@ -20,7 +20,6 @@ import {
     CollapsibleContent,
     CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { getCarColorMeta } from '@/lib/car-colors';
 import { storageUrl } from '@/lib/storage';
 import { cn, toUrl } from '@/lib/utils';
 import {
@@ -29,6 +28,7 @@ import {
     show,
     unarchive,
 } from '@/routes/garage';
+import type { CarColorOption, SharedEnums } from '@/types/enums';
 
 type Car = {
     id: number;
@@ -62,7 +62,7 @@ function CarCardMedia({ car }: { car: Car }) {
                     className="h-full w-full object-cover"
                 />
             ) : (
-                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
+                <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-slate-800 to-slate-900">
                     <Car
                         className="size-8 text-slate-400"
                         strokeWidth={1.25}
@@ -75,9 +75,11 @@ function CarCardMedia({ car }: { car: Car }) {
 
 function yearAndPlate(car: Car): string {
     const bits = [String(car.year)];
+
     if (car.plate) {
         bits.push(car.plate);
     }
+
     return bits.join(' · ');
 }
 
@@ -92,11 +94,20 @@ export default function GarageIndex({
 }) {
     const [archiveOpen, setArchiveOpen] = useState(archivedCars.length > 0);
     const [deleteTarget, setDeleteTarget] = useState<Car | null>(null);
+    const { enums } = usePage<{ enums: SharedEnums }>().props;
+
+    function getColorOption(id: string | null): CarColorOption | undefined {
+        if (!id) {
+            return undefined;
+        }
+
+        return enums.carColors.find((c) => c.id === id);
+    }
 
     return (
         <>
             <Head title="Гараж" />
-            <div className="flex flex-col gap-4 p-4">
+            <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4">
                 <div className="flex items-center justify-between gap-3">
                     <h1 className="text-lg font-semibold">Гараж</h1>
                     <Button asChild>
@@ -128,22 +139,30 @@ export default function GarageIndex({
                                             </p>
                                             {car.color ? (
                                                 <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                                                    <span
-                                                        className="inline-block size-3 shrink-0 rounded-full border border-border/50"
-                                                        style={{
-                                                            background:
-                                                                getCarColorMeta(
-                                                                    car.color,
-                                                                )?.hex ??
-                                                                'transparent',
-                                                        }}
-                                                        aria-hidden
-                                                    />
-                                                    <span>
-                                                        {getCarColorMeta(
-                                                            car.color,
-                                                        )?.name ?? car.color}
-                                                    </span>
+                                                    {(() => {
+                                                        const option =
+                                                            getColorOption(
+                                                                car.color,
+                                                            );
+
+                                                        return (
+                                                            <>
+                                                                <span
+                                                                    className="inline-block size-3 shrink-0 rounded-full border border-border/50"
+                                                                    style={{
+                                                                        background:
+                                                                            option?.hex ??
+                                                                            'transparent',
+                                                                    }}
+                                                                    aria-hidden
+                                                                />
+                                                                <span>
+                                                                    {option?.name ??
+                                                                        car.color}
+                                                                </span>
+                                                            </>
+                                                        );
+                                                    })()}
                                                 </p>
                                             ) : null}
                                         </CardHeader>
@@ -186,28 +205,34 @@ export default function GarageIndex({
                                                         </p>
                                                         {item.car.color ? (
                                                             <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                                                                <span
-                                                                    className="inline-block size-3 shrink-0 rounded-full border border-border/50"
-                                                                    style={{
-                                                                        background:
-                                                                            getCarColorMeta(
-                                                                                item
-                                                                                    .car
-                                                                                    .color,
-                                                                            )
-                                                                                ?.hex ??
-                                                                            'transparent',
-                                                                    }}
-                                                                    aria-hidden
-                                                                />
-                                                                <span>
-                                                                    {getCarColorMeta(
-                                                                        item.car
-                                                                            .color,
-                                                                    )?.name ??
-                                                                        item.car
-                                                                            .color}
-                                                                </span>
+                                                                {(() => {
+                                                                    const option =
+                                                                        getColorOption(
+                                                                            item
+                                                                                .car
+                                                                                .color,
+                                                                        );
+
+                                                                    return (
+                                                                        <>
+                                                                            <span
+                                                                                className="inline-block size-3 shrink-0 rounded-full border border-border/50"
+                                                                                style={{
+                                                                                    background:
+                                                                                        option?.hex ??
+                                                                                        'transparent',
+                                                                                }}
+                                                                                aria-hidden
+                                                                            />
+                                                                            <span>
+                                                                                {option?.name ??
+                                                                                    item
+                                                                                        .car
+                                                                                        .color}
+                                                                            </span>
+                                                                        </>
+                                                                    );
+                                                                })()}
                                                             </p>
                                                         ) : null}
                                                         <p className="mt-2 text-sm text-muted-foreground">
@@ -342,6 +367,7 @@ export default function GarageIndex({
                                 if (!deleteTarget) {
                                     return;
                                 }
+
                                 router.delete(
                                     toUrl(
                                         destroyPermanent.url(deleteTarget.id),

@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\CarColor;
 use App\Models\CarModel;
-use App\Support\CarColorIds;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -34,7 +34,7 @@ class StoreCarRequest extends FormRequest
             'year' => ['required', 'integer', 'min:1886', 'max:2100'],
             'vin' => ['nullable', 'string', 'size:17', 'unique:cars,vin'],
             'plate' => ['nullable', 'string', 'max:255'],
-            'color' => ['nullable', 'string', Rule::in(CarColorIds::IDS)],
+            'color' => ['nullable', Rule::enum(CarColor::class)],
             'cover_photo' => ['nullable', 'image', 'max:5120'],
         ];
     }

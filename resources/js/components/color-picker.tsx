@@ -1,62 +1,64 @@
-import { motion } from 'framer-motion';
-import { CAR_COLORS, carColorNeedsBorder } from '@/lib/car-colors';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import type { CarColorOption } from '@/types/enums';
 
 type ColorPickerProps = {
     value: string;
     onChange: (value: string) => void;
+    colors: CarColorOption[];
 };
 
-export function ColorPicker({ value, onChange }: ColorPickerProps) {
-    const selected = CAR_COLORS.find((c) => c.id === value);
+export function ColorPicker({ value, onChange, colors }: ColorPickerProps) {
+    const selected = colors.find((c) => c.id === value);
+    const noneValue = '__none__';
 
     return (
-        <div className="grid gap-3">
-            <div className="grid grid-cols-6 gap-3">
-                {CAR_COLORS.map((c) => {
-                    const isSelected = c.id === value;
-                    const needsBorder = carColorNeedsBorder(c.id);
-
-                    return (
-                        <motion.button
-                            key={c.id}
-                            type="button"
-                            title={c.name}
-                            layout
-                            onClick={() =>
-                                onChange(isSelected ? '' : c.id)
-                            }
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.95 }}
+        <Select
+            value={value !== '' ? value : noneValue}
+            onValueChange={(v) => onChange(v === noneValue ? '' : v)}
+        >
+            <SelectTrigger className="w-full">
+                {selected ? (
+                    <span className="flex items-center gap-2">
+                        <span
                             className={cn(
-                                'relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full cursor-pointer transition-transform outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                                needsBorder && 'border border-border/60',
-                                isSelected &&
-                                    'ring-2 ring-primary ring-offset-2 ring-offset-background',
+                                'size-3.5 rounded-full',
+                                selected.needsBorder && 'ring-1 ring-border',
                             )}
-                            style={{ backgroundColor: c.hex }}
-                            aria-label={c.name}
-                            aria-pressed={isSelected}
-                        >
-                            {isSelected ? (
-                                <motion.span
-                                    layoutId="color-picker-pulse"
-                                    className="absolute inset-0 rounded-full ring-2 ring-primary/40"
-                                    initial={{ scale: 1 }}
-                                    animate={{ scale: [1, 1.15, 1] }}
-                                    transition={{
-                                        duration: 0.45,
-                                        ease: 'easeInOut',
-                                    }}
-                                />
-                            ) : null}
-                        </motion.button>
-                    );
-                })}
-            </div>
-            <p className="min-h-4 text-center text-xs text-muted-foreground">
-                {selected ? selected.name : 'Не выбран'}
-            </p>
-        </div>
+                            style={{ backgroundColor: selected.hex }}
+                        />
+                        <span>{selected.name}</span>
+                    </span>
+                ) : (
+                    <span className="text-muted-foreground">Не выбран</span>
+                )}
+            </SelectTrigger>
+
+            <SelectContent align="start">
+                <SelectItem value={noneValue}>
+                    <span className="text-muted-foreground">Не выбран</span>
+                </SelectItem>
+
+                {colors.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                        <span className="flex items-center gap-2">
+                            <span
+                                className={cn(
+                                    'size-3.5 rounded-full',
+                                    c.needsBorder && 'ring-1 ring-border',
+                                )}
+                                style={{ backgroundColor: c.hex }}
+                            />
+                            <span>{c.name}</span>
+                        </span>
+                    </SelectItem>
+                ))}
+            </SelectContent>
+        </Select>
     );
 }

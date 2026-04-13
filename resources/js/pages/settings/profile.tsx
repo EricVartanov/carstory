@@ -5,10 +5,10 @@ import DeleteUser from '@/components/delete-user';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
-import { UserAvatar } from '@/components/user-avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { UserAvatar } from '@/components/user-avatar';
 import { storageUrl } from '@/lib/storage';
 import { toUrl } from '@/lib/utils';
 import { avatar as profileAvatar, edit, update as profileUpdate } from '@/routes/profile';
@@ -35,9 +35,11 @@ export default function Profile({
     const passwordInput = useRef<HTMLInputElement>(null);
     const currentPasswordInput = useRef<HTMLInputElement>(null);
     const avatarInputRef = useRef<HTMLInputElement>(null);
-    const [avatarPreview, setAvatarPreview] = useState<string | null>(() =>
-        storageUrl(user.avatar ?? null),
-    );
+    const [avatarPreviewOverride, setAvatarPreviewOverride] = useState<
+        string | null
+    >(null);
+    const avatarPreview =
+        avatarPreviewOverride ?? storageUrl(user.avatar ?? null);
 
     const {
         data: profileData,
@@ -51,15 +53,12 @@ export default function Profile({
     });
 
     const [avatarUploading, setAvatarUploading] = useState(false);
-    const [avatarFieldError, setAvatarFieldError] = useState<string | null>(
-        null,
-    );
+    const [avatarFieldError, setAvatarFieldError] = useState<string>();
 
     useEffect(() => {
         setProfileData('name', user.name);
         setProfileData('email', user.email);
-        setAvatarPreview(storageUrl(user.avatar ?? null));
-    }, [user.name, user.email, user.avatar, setProfileData]);
+    }, [user.name, user.email, setProfileData]);
 
     function submitProfile(e: React.FormEvent) {
         e.preventDefault();
@@ -145,19 +144,20 @@ export default function Profile({
                                     const input = e.target;
 
                                     if (!file) {
-                                        setAvatarPreview(
-                                            storageUrl(user.avatar ?? null),
-                                        );
+                                        setAvatarPreviewOverride(null);
+
                                         return;
                                     }
 
-                                    setAvatarFieldError(null);
+                                    setAvatarFieldError(undefined);
                                     const reader = new FileReader();
                                     reader.onload = () => {
                                         if (
                                             typeof reader.result === 'string'
                                         ) {
-                                            setAvatarPreview(reader.result);
+                                            setAvatarPreviewOverride(
+                                                reader.result,
+                                            );
                                         }
                                     };
                                     reader.readAsDataURL(file);
@@ -174,13 +174,9 @@ export default function Profile({
                                             },
                                             onError: (errs) => {
                                                 setAvatarFieldError(
-                                                    errs.avatar ?? null,
+                                                    errs.avatar ?? undefined,
                                                 );
-                                                setAvatarPreview(
-                                                    storageUrl(
-                                                        user.avatar ?? null,
-                                                    ),
-                                                );
+                                                setAvatarPreviewOverride(null);
                                             },
                                             onFinish: () => {
                                                 setAvatarUploading(false);

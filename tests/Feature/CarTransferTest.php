@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\CarTransferStatus;
 use App\Mail\TransferInvitation;
 use App\Models\Car;
 use App\Models\CarOwnership;
@@ -81,7 +82,7 @@ test('accept with expired token cancels transfer and redirects', function () {
     $this->get(route('transfer.accept', ['token' => $transfer->token]))
         ->assertRedirect(route('garage.index'));
 
-    expect($transfer->refresh()->status)->toBe('cancelled');
+    expect($transfer->refresh()->status)->toBe(CarTransferStatus::Cancelled);
 });
 
 test('owner cannot accept their own transfer link', function () {
@@ -141,7 +142,7 @@ test('confirm transfers car ownership and marks transfer accepted', function () 
     expect($car->user_id)->toBe($buyer->id);
 
     $transfer->refresh();
-    expect($transfer->status)->toBe('accepted');
+    expect($transfer->status)->toBe(CarTransferStatus::Accepted);
     expect($transfer->to_user_id)->toBe($buyer->id);
 
     $openOwnership = CarOwnership::query()
@@ -188,7 +189,7 @@ test('regenerate replaces pending transfer with a new one', function () {
     $this->post(route('transfer.regenerate', $car))
         ->assertRedirect(route('transfer.create', $car));
 
-    expect($old->refresh()->status)->toBe('cancelled');
+    expect($old->refresh()->status)->toBe(CarTransferStatus::Cancelled);
 
     $this->get(route('transfer.create', $car))->assertOk();
 

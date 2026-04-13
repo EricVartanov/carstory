@@ -3,14 +3,11 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
     Camera,
     Car as CarIcon,
-    FileText,
-    Fuel,
-    NotebookPen,
     Pencil,
     Trash2,
-    Wrench,
 } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
+import InputError from '@/components/input-error';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -21,7 +18,6 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -49,7 +45,6 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { getCarColorMeta } from '@/lib/car-colors';
 import { formatDateRu, formatMileageRu, formatMoneyRu } from '@/lib/ru';
 import { storageUrl } from '@/lib/storage';
 import { cn, toUrl } from '@/lib/utils';
@@ -64,6 +59,8 @@ import {
     create as transferCreate,
     cancel as transferCancel,
 } from '@/routes/transfer';
+import { DynamicIcon } from '@/lib/icons';
+import type { CurrencyOption, EntryTypeOption, SharedEnums } from '@/types/enums';
 
 type Car = {
     id: number;
@@ -89,11 +86,11 @@ type Entry = {
     user_id: number;
     date: string;
     mileage: number | null;
-    type: 'note' | 'service' | 'trip' | 'fuel';
+    type: string;
     title: string | null;
     body: string | null;
     amount: string | number | null;
-    currency: 'RUB' | 'AMD' | 'KZT' | 'UAH' | 'BYN' | 'USD' | null;
+    currency: string | null;
     photos: EntryPhoto[];
 };
 
@@ -106,7 +103,7 @@ type Ownership = {
 
 type PendingTransfer = {
     id: number;
-    status: 'pending' | 'accepted' | 'cancelled';
+    status: string;
 } | null;
 
 type Props = {
@@ -118,46 +115,6 @@ type Props = {
     pendingTransfer: PendingTransfer;
 };
 
-function EntryTypeIcon({ type }: { type: Entry['type'] }) {
-    switch (type) {
-        case 'note':
-            return <NotebookPen className="size-4" />;
-        case 'service':
-            return <Wrench className="size-4" />;
-        case 'trip':
-            return <CarIcon className="size-4" />;
-        case 'fuel':
-            return <Fuel className="size-4" />;
-    }
-}
-
-function entryTypeBadgeMeta(type: Entry['type']): {
-    label: string;
-    variant: 'default' | 'secondary' | 'outline';
-} {
-    switch (type) {
-        case 'note':
-            return { label: 'Заметка', variant: 'secondary' };
-        case 'service':
-            return { label: 'Обслуживание', variant: 'default' };
-        case 'trip':
-            return { label: 'Поездка', variant: 'outline' };
-        case 'fuel':
-            return { label: 'Заправка', variant: 'secondary' };
-    }
-}
-
-const HISTORY_FILTERS = [
-    { id: 'all' as const, label: 'Все', icon: null },
-    { id: 'service' as const, label: 'Обслуживание', icon: Wrench },
-    { id: 'trip' as const, label: 'Поездки', icon: CarIcon },
-    { id: 'fuel' as const, label: 'Заправки', icon: Fuel },
-    { id: 'note' as const, label: 'Заметки', icon: FileText },
-    { id: 'photos' as const, label: 'Фото', icon: Camera },
-];
-
-type HistoryFilterId = (typeof HISTORY_FILTERS)[number]['id'];
-
 function EntryModal({
     carId,
     open,
@@ -168,24 +125,27 @@ function EntryModal({
     onOpenChange: (v: boolean) => void;
 }) {
     const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+    const { enums } = usePage<PageProps>().props;
+    const defaultType = enums.entryTypes[0]?.id ?? 'note';
+    const defaultCurrency = enums.currencies[0]?.id ?? 'RUB';
 
     const { data, setData, processing, errors, reset, post } = useForm<{
-        type: Entry['type'];
+        type: string;
         date: string;
         mileage: string;
         title: string;
         body: string;
         amount: string;
-        currency: NonNullable<Entry['currency']>;
+        currency: string;
         photos: File[];
     }>({
-        type: 'note',
+        type: defaultType,
         date: today,
         mileage: '',
         title: '',
         body: '',
         amount: '',
-        currency: 'RUB',
+        currency: defaultCurrency,
         photos: [],
     });
 
@@ -216,22 +176,17 @@ function EntryModal({
                         <Label>Тип</Label>
                         <Select
                             value={data.type}
-                            onValueChange={(v) =>
-                                setData('type', v as Entry['type'])
-                            }
+                            onValueChange={(v) => setData('type', v)}
                         >
                             <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Выберите тип" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="note">📝 Заметка</SelectItem>
-                                <SelectItem value="service">
-                                    🔧 Обслуживание
-                                </SelectItem>
-                                <SelectItem value="trip">🚗 Поездка</SelectItem>
-                                <SelectItem value="fuel">
-                                    ⛽ Заправка
-                                </SelectItem>
+                                {enums.entryTypes.map((type: EntryTypeOption) => (
+                                    <SelectItem key={type.id} value={type.id}>
+                                        {type.label}
+                                    </SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                         <InputError message={errors.type} />
@@ -306,24 +261,22 @@ function EntryModal({
                             <Label>Валюта</Label>
                             <Select
                                 value={data.currency}
-                                onValueChange={(v) =>
-                                    setData(
-                                        'currency',
-                                        v as Props['entries'][number]['currency'] &
-                                            string,
-                                    )
-                                }
+                                onValueChange={(v) => setData('currency', v)}
                             >
                                 <SelectTrigger className="w-full">
                                     <SelectValue placeholder="Валюта" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="RUB">RUB</SelectItem>
-                                    <SelectItem value="AMD">AMD</SelectItem>
-                                    <SelectItem value="KZT">KZT</SelectItem>
-                                    <SelectItem value="UAH">UAH</SelectItem>
-                                    <SelectItem value="BYN">BYN</SelectItem>
-                                    <SelectItem value="USD">USD</SelectItem>
+                                    {enums.currencies.map(
+                                        (currency: CurrencyOption) => (
+                                            <SelectItem
+                                                key={currency.id}
+                                                value={currency.id}
+                                            >
+                                                {currency.symbol} {currency.id}
+                                            </SelectItem>
+                                        ),
+                                    )}
                                 </SelectContent>
                             </Select>
                             <InputError message={errors.currency} />
@@ -368,6 +321,7 @@ function EntryModal({
 
 type PageProps = Props & {
     auth: { user: { id: number; email: string; name?: string } | null };
+    enums: SharedEnums;
 };
 
 export default function GarageShow({
@@ -379,11 +333,49 @@ export default function GarageShow({
 }: Props) {
     const [modalOpen, setModalOpen] = useState(false);
     const [archiveOpen, setArchiveOpen] = useState(false);
-    const [activeFilter, setActiveFilter] =
-        useState<HistoryFilterId>('all');
+    const [activeFilter, setActiveFilter] = useState<string>('all');
     const coverPhotoInputRef = useRef<HTMLInputElement>(null);
     const [coverUploading, setCoverUploading] = useState(false);
-    const authUser = usePage<PageProps>().props.auth.user;
+    const page = usePage<PageProps>();
+    const authUser = page.props.auth.user;
+    const { enums } = page.props;
+
+    const historyFilters = useMemo(() => {
+        return [
+            { id: 'all', label: 'Все', icon: null },
+            ...enums.entryTypes.map((t) => ({
+                id: t.id,
+                label: t.label,
+                icon: t.icon,
+            })),
+            { id: 'photos', label: 'Фото', icon: 'Camera' },
+        ] as const;
+    }, [enums.entryTypes]);
+
+    function getEntryTypeOption(typeId: string): EntryTypeOption | undefined {
+        return enums.entryTypes.find((t) => t.id === typeId);
+    }
+
+    function entryTypeBadgeMeta(typeId: string): {
+        label: string;
+        variant: 'default' | 'secondary' | 'outline';
+        icon: string;
+    } {
+        const option = getEntryTypeOption(typeId);
+        const label = option?.label ?? typeId;
+        const icon = option?.icon ?? 'FileText';
+
+        switch (typeId) {
+            case 'service':
+                return { label, variant: 'default', icon };
+            case 'trip':
+                return { label, variant: 'outline', icon };
+            case 'fuel':
+            case 'note':
+            default:
+                return { label, variant: 'secondary', icon };
+        }
+    }
 
     const filteredEntries = useMemo(() => {
         if (activeFilter === 'all') {
@@ -403,9 +395,9 @@ export default function GarageShow({
         <>
             <Head title={`${car.brand} ${car.model}`} />
 
-            <div className="flex flex-col gap-4 p-4">
+            <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4">
                 <Card className="gap-0 py-0">
-                    <CardHeader className="pb-0">
+                    <CardHeader className="p-5">
                         <div className="flex flex-col gap-4 sm:flex-row">
                             <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-xl bg-muted sm:max-w-md">
                                 {coverSrc ? (
@@ -415,7 +407,7 @@ export default function GarageShow({
                                         className="h-full w-full object-cover"
                                     />
                                 ) : (
-                                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
+                                    <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-slate-800 to-slate-900">
                                         <CarIcon className="size-12 text-slate-400" />
                                     </div>
                                 )}
@@ -433,9 +425,11 @@ export default function GarageShow({
                                                     e.target.files?.[0] ??
                                                     null;
                                                 const input = e.target;
+
                                                 if (!file) {
                                                     return;
                                                 }
+
                                                 setCoverUploading(true);
                                                 router.post(
                                                     toUrl(
@@ -486,20 +480,29 @@ export default function GarageShow({
                                     ) : null}
                                     {car.color ? (
                                         <span className="inline-flex items-center gap-1.5">
-                                            <span
-                                                className="inline-block size-3 shrink-0 rounded-full border border-border/50"
-                                                style={{
-                                                    background:
-                                                        getCarColorMeta(
-                                                            car.color,
-                                                        )?.hex ?? 'transparent',
-                                                }}
-                                                aria-hidden
-                                            />
-                                            <span>
-                                                {getCarColorMeta(car.color)
-                                                    ?.name ?? car.color}
-                                            </span>
+                                            {(() => {
+                                                const option = enums.carColors.find(
+                                                    (c) => c.id === car.color,
+                                                );
+
+                                                return (
+                                                    <>
+                                                        <span
+                                                            className="inline-block size-3 shrink-0 rounded-full border border-border/50"
+                                                            style={{
+                                                                background:
+                                                                    option?.hex ??
+                                                                    'transparent',
+                                                            }}
+                                                            aria-hidden
+                                                        />
+                                                        <span>
+                                                            {option?.name ??
+                                                                car.color}
+                                                        </span>
+                                                    </>
+                                                );
+                                            })()}
                                         </span>
                                     ) : null}
                                     {!car.plate && !car.color ? (
@@ -598,8 +601,7 @@ export default function GarageShow({
                             role="tablist"
                             aria-label="Фильтр записей"
                         >
-                            {HISTORY_FILTERS.map((f) => {
-                                const Icon = f.icon;
+                            {historyFilters.map((f) => {
                                 const active = activeFilter === f.id;
 
                                 return (
@@ -616,8 +618,11 @@ export default function GarageShow({
                                                 : 'bg-secondary text-secondary-foreground',
                                         )}
                                     >
-                                        {Icon ? (
-                                            <Icon className="size-3.5 shrink-0" />
+                                        {f.icon ? (
+                                            <DynamicIcon
+                                                name={f.icon}
+                                                className="size-3.5 shrink-0"
+                                            />
                                         ) : null}
                                         {f.label}
                                     </button>
@@ -661,8 +666,9 @@ export default function GarageShow({
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="flex min-w-0 items-start gap-3">
                                                     <div className="mt-0.5 text-muted-foreground">
-                                                        <EntryTypeIcon
-                                                            type={entry.type}
+                                                        <DynamicIcon
+                                                            name={typeMeta.icon}
+                                                            className="size-4"
                                                         />
                                                     </div>
                                                     <div className="min-w-0 space-y-2">
@@ -742,10 +748,26 @@ export default function GarageShow({
                                         entry.amount !== '' ? (
                                             <CardContent className="pt-2 pb-0">
                                                 <div className="text-sm font-medium">
-                                                    {formatMoneyRu(
-                                                        entry.amount,
-                                                        entry.currency ?? 'RUB',
-                                                    )}
+                                                    {(() => {
+                                                        const formatted =
+                                                            formatMoneyRu(
+                                                                entry.amount,
+                                                            );
+                                                        const code =
+                                                            entry.currency ??
+                                                            null;
+                                                        const symbol = code
+                                                            ? enums.currencies.find(
+                                                                  (c) =>
+                                                                      c.id ===
+                                                                      code,
+                                                              )?.symbol
+                                                            : null;
+
+                                                        return symbol
+                                                            ? `${formatted} ${symbol}`
+                                                            : formatted;
+                                                    })()}
                                                 </div>
                                             </CardContent>
                                         ) : null}

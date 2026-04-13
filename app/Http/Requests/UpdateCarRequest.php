@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\CarColor;
 use App\Models\Car;
 use App\Models\CarModel;
-use App\Support\CarColorIds;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -43,7 +43,7 @@ class UpdateCarRequest extends FormRequest
                 Rule::unique('cars', 'vin')->ignore($car->id),
             ],
             'plate' => ['nullable', 'string', 'max:255'],
-            'color' => ['nullable', 'string', Rule::in(CarColorIds::IDS)],
+            'color' => ['nullable', Rule::enum(CarColor::class)],
             'cover_photo' => ['nullable', 'image', 'max:5120'],
         ];
     }

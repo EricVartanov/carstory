@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreCarRequest;
 use App\Http\Requests\UpdateCarRequest;
+use App\Http\Resources\CarResource;
+use App\Http\Resources\EntryResource;
 use App\Models\Car;
 use App\Models\CarOwnership;
+use App\Models\Entry;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -73,15 +76,15 @@ class GarageController extends Controller
             ->get()
             ->filter(fn (CarOwnership $ownership) => $ownership->car && $ownership->car->user_id !== $user->id)
             ->map(fn (CarOwnership $ownership) => [
-                'car' => $ownership->car,
+                'car' => (new CarResource($ownership->car))->resolve(),
                 'owned_from' => $ownership->owned_from->format('d.m.Y'),
                 'owned_until' => $ownership->owned_until->format('d.m.Y'),
             ])
             ->values();
 
         return Inertia::render('garage/index', [
-            'cars' => $cars,
-            'archivedCars' => $archivedCars,
+            'cars' => $cars->map(fn (Car $car) => (new CarResource($car))->resolve())->values()->all(),
+            'archivedCars' => $archivedCars->map(fn (Car $car) => (new CarResource($car))->resolve())->values()->all(),
             'previousCars' => $previousCars,
         ]);
     }
@@ -111,7 +114,7 @@ class GarageController extends Controller
                 'year' => (string) $car->year,
                 'vin' => $car->vin ?? '',
                 'plate' => $car->plate ?? '',
-                'color' => $car->color ?? '',
+                'color' => $car->color?->value ?? '',
                 'cover_photo' => $car->cover_photo,
             ],
         ]);
@@ -145,12 +148,17 @@ class GarageController extends Controller
         $myOwnership = $car->ownerships->firstWhere('user_id', auth()->id());
 
         return Inertia::render('garage/show', [
-            'car' => $car,
-            'entries' => $car->entries,
+            'car' => (new CarResource($car))->resolve(),
+            'entries' => $car->entries->map(fn (Entry $entry) => (new EntryResource($entry))->resolve())->values()->all(),
             'ownerships' => $car->ownerships,
             'isCurrentOwner' => $isCurrentOwner,
             'myOwnership' => $myOwnership,
-            'pendingTransfer' => $car->pendingTransfer,
+            'pendingTransfer' => $car->pendingTransfer
+                ? [
+                    'id' => $car->pendingTransfer->id,
+                    'status' => $car->pendingTransfer->status->value,
+                ]
+                : null,
         ]);
     }
 

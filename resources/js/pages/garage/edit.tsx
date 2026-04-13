@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { Car } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { BrandModelSelect } from '@/components/brand-model-select';
@@ -19,6 +19,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { storageUrl } from '@/lib/storage';
 import { toUrl } from '@/lib/utils';
 import { index, update } from '@/routes/garage';
+import type { SharedEnums } from '@/types/enums';
 
 type CarFormDefaults = {
     id: number;
@@ -52,6 +53,7 @@ export default function GarageEdit({ car }: { car: CarFormDefaults }) {
     const [coverPreview, setCoverPreview] = useState<string | null>(() =>
         storageUrl(car.cover_photo),
     );
+    const { enums } = usePage<{ enums: SharedEnums }>().props;
 
     const { data, setData, processing, errors, patch } = useForm<FormFields>({
         brand_id: car.brand_id,
@@ -76,7 +78,7 @@ export default function GarageEdit({ car }: { car: CarFormDefaults }) {
         <>
             <Head title="Редактировать машину" />
 
-            <div className="flex flex-col gap-6 p-4">
+            <div className="mx-auto w-full max-w-4xl p-4">
                 <Card>
                     <CardHeader>
                         <CardTitle>Редактировать машину</CardTitle>
@@ -84,164 +86,215 @@ export default function GarageEdit({ car }: { car: CarFormDefaults }) {
                             Обновите данные автомобиля и сохраните изменения.
                         </CardDescription>
                     </CardHeader>
+
+                    <CardContent>
+                        <form onSubmit={submit} className="grid gap-6">
+                            <div className="grid gap-6 lg:grid-cols-[18rem_1fr] lg:items-start">
+                                <div className="grid gap-2">
+                                    <div
+                                        className="relative flex aspect-4/3 w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-secondary transition-opacity hover:opacity-95 lg:aspect-square"
+                                        onClick={() =>
+                                            coverInputRef.current?.click()
+                                        }
+                                        onKeyDown={(e) => {
+                                            if (
+                                                e.key === 'Enter' ||
+                                                e.key === ' '
+                                            ) {
+                                                e.preventDefault();
+                                                coverInputRef.current?.click();
+                                            }
+                                        }}
+                                        role="button"
+                                        tabIndex={0}
+                                        aria-label="Выбрать фото автомобиля"
+                                    >
+                                        {coverPreview ? (
+                                            <img
+                                                src={coverPreview}
+                                                alt=""
+                                                className="h-full w-full object-cover"
+                                            />
+                                        ) : (
+                                            <Car
+                                                className="size-12 text-muted-foreground"
+                                                strokeWidth={1.25}
+                                            />
+                                        )}
+                                    </div>
+                                    <input
+                                        ref={coverInputRef}
+                                        type="file"
+                                        name="cover_photo"
+                                        accept="image/*"
+                                        className="sr-only"
+                                        onChange={(e) => {
+                                            const file =
+                                                e.target.files?.[0] ?? null;
+
+                                            setData('cover_photo', file);
+
+                                            if (!file) {
+                                                setCoverPreview(
+                                                    storageUrl(car.cover_photo),
+                                                );
+
+                                                return;
+                                            }
+
+                                            const reader = new FileReader();
+                                            reader.onload = () => {
+                                                if (
+                                                    typeof reader.result ===
+                                                    'string'
+                                                ) {
+                                                    setCoverPreview(
+                                                        reader.result,
+                                                    );
+                                                }
+                                            };
+                                            reader.readAsDataURL(file);
+                                        }}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        Фото автомобиля (необязательно)
+                                    </p>
+                                    <InputError message={errors.cover_photo} />
+                                </div>
+
+                                <div className="grid gap-6">
+                                    <div>
+                                        <BrandModelSelect
+                                            key={car.id}
+                                            defaultBrand={
+                                                data.brand_id !== null
+                                                    ? {
+                                                          id: data.brand_id,
+                                                          name: data.brand_name,
+                                                      }
+                                                    : data.brand_name.trim() !==
+                                                        ''
+                                                      ? {
+                                                            id: null,
+                                                            name: data.brand_name,
+                                                        }
+                                                      : null
+                                            }
+                                            defaultModel={
+                                                data.model_id !== null
+                                                    ? {
+                                                          id: data.model_id,
+                                                          name: data.model_name,
+                                                      }
+                                                    : data.model_name.trim() !==
+                                                        ''
+                                                      ? {
+                                                            id: null,
+                                                            name: data.model_name,
+                                                        }
+                                                      : null
+                                            }
+                                            onBrandChange={(p) =>
+                                                setData((d) =>
+                                                    applyBrandModel(d, p),
+                                                )
+                                            }
+                                            onModelChange={(p) =>
+                                                setData((d) =>
+                                                    applyBrandModel(d, p),
+                                                )
+                                            }
+                                        />
+                                        <InputError
+                                            className="mt-2"
+                                            message={errors.brand_id}
+                                        />
+                                        <InputError message={errors.brand_name} />
+                                        <InputError message={errors.model_id} />
+                                        <InputError
+                                            message={errors.model_name}
+                                        />
+                                    </div>
+
+                                    <div className="grid gap-6 md:grid-cols-2">
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="year">Год</Label>
+                                            <Input
+                                                id="year"
+                                                inputMode="numeric"
+                                                value={data.year}
+                                                onChange={(e) =>
+                                                    setData(
+                                                        'year',
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                placeholder="Например: 2018"
+                                                required
+                                            />
+                                            <InputError message={errors.year} />
+                                        </div>
+
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="plate">
+                                                Гос. номер
+                                            </Label>
+                                            <Input
+                                                id="plate"
+                                                value={data.plate}
+                                                onChange={(e) =>
+                                                    setData(
+                                                        'plate',
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                placeholder="Опционально"
+                                            />
+                                            <InputError
+                                                message={errors.plate}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="vin">VIN</Label>
+                                        <Input
+                                            id="vin"
+                                            value={data.vin}
+                                            onChange={(e) =>
+                                                setData('vin', e.target.value)
+                                            }
+                                            placeholder="17 символов (опционально)"
+                                        />
+                                        <InputError message={errors.vin} />
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label>Цвет автомобиля</Label>
+                                        <ColorPicker
+                                            value={data.color}
+                                            colors={enums.carColors}
+                                            onChange={(v) =>
+                                                setData('color', v)
+                                            }
+                                        />
+                                        <InputError message={errors.color} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end">
+                                <Button
+                                    type="submit"
+                                    disabled={processing}
+                                >
+                                    {processing && <Spinner />}
+                                    Сохранить
+                                </Button>
+                            </div>
+                        </form>
+                    </CardContent>
                 </Card>
-
-                <form onSubmit={submit} className="grid gap-6">
-                    <div className="grid gap-2">
-                        <div
-                            className="relative flex aspect-video w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-secondary transition-opacity hover:opacity-95"
-                            onClick={() => coverInputRef.current?.click()}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    coverInputRef.current?.click();
-                                }
-                            }}
-                            role="button"
-                            tabIndex={0}
-                            aria-label="Выбрать фото автомобиля"
-                        >
-                            {coverPreview ? (
-                                <img
-                                    src={coverPreview}
-                                    alt=""
-                                    className="h-full w-full object-cover"
-                                />
-                            ) : (
-                                <Car
-                                    className="size-12 text-muted-foreground"
-                                    strokeWidth={1.25}
-                                />
-                            )}
-                        </div>
-                        <input
-                            ref={coverInputRef}
-                            type="file"
-                            name="cover_photo"
-                            accept="image/*"
-                            className="sr-only"
-                            onChange={(e) => {
-                                const file = e.target.files?.[0] ?? null;
-                                setData('cover_photo', file);
-                                if (!file) {
-                                    setCoverPreview(storageUrl(car.cover_photo));
-                                    return;
-                                }
-                                const reader = new FileReader();
-                                reader.onload = () => {
-                                    if (typeof reader.result === 'string') {
-                                        setCoverPreview(reader.result);
-                                    }
-                                };
-                                reader.readAsDataURL(file);
-                            }}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                            Фото автомобиля (необязательно)
-                        </p>
-                        <InputError message={errors.cover_photo} />
-                    </div>
-
-                    <Card>
-                        <CardContent className="pt-6">
-                            <BrandModelSelect
-                                key={car.id}
-                                defaultBrand={
-                                    data.brand_id !== null
-                                        ? {
-                                              id: data.brand_id,
-                                              name: data.brand_name,
-                                          }
-                                        : data.brand_name.trim() !== ''
-                                          ? {
-                                                id: null,
-                                                name: data.brand_name,
-                                            }
-                                          : null
-                                }
-                                defaultModel={
-                                    data.model_id !== null
-                                        ? {
-                                              id: data.model_id,
-                                              name: data.model_name,
-                                          }
-                                        : data.model_name.trim() !== ''
-                                          ? {
-                                                id: null,
-                                                name: data.model_name,
-                                            }
-                                          : null
-                                }
-                                onBrandChange={(p) =>
-                                    setData((d) => applyBrandModel(d, p))
-                                }
-                                onModelChange={(p) =>
-                                    setData((d) => applyBrandModel(d, p))
-                                }
-                            />
-                            <InputError
-                                className="mt-2"
-                                message={errors.brand_id}
-                            />
-                            <InputError message={errors.brand_name} />
-                            <InputError message={errors.model_id} />
-                            <InputError message={errors.model_name} />
-                        </CardContent>
-                    </Card>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="year">Год</Label>
-                        <Input
-                            id="year"
-                            inputMode="numeric"
-                            value={data.year}
-                            onChange={(e) => setData('year', e.target.value)}
-                            placeholder="Например: 2018"
-                            required
-                        />
-                        <InputError message={errors.year} />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="vin">VIN</Label>
-                        <Input
-                            id="vin"
-                            value={data.vin}
-                            onChange={(e) => setData('vin', e.target.value)}
-                            placeholder="17 символов (опционально)"
-                        />
-                        <InputError message={errors.vin} />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="plate">Гос. номер</Label>
-                        <Input
-                            id="plate"
-                            value={data.plate}
-                            onChange={(e) => setData('plate', e.target.value)}
-                            placeholder="Опционально"
-                        />
-                        <InputError message={errors.plate} />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label>Цвет автомобиля</Label>
-                        <ColorPicker
-                            value={data.color}
-                            onChange={(v) => setData('color', v)}
-                        />
-                        <InputError message={errors.color} />
-                    </div>
-
-                    <Button
-                        type="submit"
-                        className="w-full sm:w-auto"
-                        disabled={processing}
-                    >
-                        {processing && <Spinner />}
-                        Сохранить
-                    </Button>
-                </form>
             </div>
         </>
     );

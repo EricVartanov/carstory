@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\CarColor;
+use App\Enums\CarTransferStatus;
 use Database\Factories\CarFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -60,7 +62,7 @@ class Car extends Model
      */
     public function pendingTransfer(): HasOne
     {
-        return $this->hasOne(CarTransfer::class)->where('status', 'pending');
+        return $this->hasOne(CarTransfer::class)->where('status', CarTransferStatus::Pending->value);
     }
 
     /**
@@ -98,6 +100,7 @@ class Car extends Model
     protected function casts(): array
     {
         return [
+            'color' => CarColor::class,
             'year' => 'integer',
             'is_archived' => 'boolean',
             'archived_at' => 'datetime',
