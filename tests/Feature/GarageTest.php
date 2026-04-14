@@ -8,6 +8,7 @@ use App\Models\CarModel;
 use App\Models\CarOwnership;
 use App\Models\CarTransfer;
 use App\Models\User;
+use App\Services\Images\ImageTranscoder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -366,6 +367,37 @@ test('owner can update car cover photo via dedicated endpoint', function () {
 
     expect($car->cover_photo)->not->toBe($oldPath)
         ->and(Storage::disk('public')->exists($oldPath))->toBeFalse()
+        ->and(Storage::disk('public')->exists((string) $car->cover_photo))->toBeTrue();
+});
+
+test('owner can update car cover photo with HEIC (transcoded)', function () {
+    Storage::fake('public');
+
+    app()->bind(ImageTranscoder::class, fn () => new class implements ImageTranscoder
+    {
+        public function toJpeg(UploadedFile $file, int $quality = 85): UploadedFile
+        {
+            return UploadedFile::fake()->image('converted.jpg', 10, 10);
+        }
+    });
+
+    $user = User::factory()->create();
+    $car = Car::factory()->create(['user_id' => $user->id]);
+
+    $file = UploadedFile::fake()->create('cover.heic', 200, 'image/heic');
+
+    $this->actingAs($user)
+        ->from(route('garage.show', $car))
+        ->post(route('garage.update-cover', $car), [
+            'cover_photo' => $file,
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('garage.show', $car));
+
+    $car->refresh();
+
+    expect($car->cover_photo)->not->toBeNull()
+        ->and(str_ends_with((string) $car->cover_photo, '.jpg'))->toBeTrue()
         ->and(Storage::disk('public')->exists((string) $car->cover_photo))->toBeTrue();
 });
 

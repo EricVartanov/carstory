@@ -4,6 +4,7 @@ use App\Models\Car;
 use App\Models\CarOwnership;
 use App\Models\Entry;
 use App\Models\User;
+use App\Services\Images\ImageTranscoder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -93,6 +94,36 @@ test('profile avatar can be uploaded and stored on public disk', function () {
 
     expect($user->avatar)->not->toBeNull()
         ->and(Storage::disk('public')->exists($user->avatar))->toBeTrue();
+});
+
+test('profile avatar accepts HEIC and stores transcoded jpeg', function () {
+    Storage::fake('public');
+
+    app()->bind(ImageTranscoder::class, fn () => new class implements ImageTranscoder
+    {
+        public function toJpeg(UploadedFile $file, int $quality = 85): UploadedFile
+        {
+            return UploadedFile::fake()->image('converted.jpg', 100, 100);
+        }
+    });
+
+    $user = User::factory()->create();
+    $file = UploadedFile::fake()->create('avatar.heic', 200, 'image/heic');
+
+    $this
+        ->actingAs($user)
+        ->from(route('profile.edit'))
+        ->post(route('profile.avatar'), [
+            'avatar' => $file,
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('profile.edit'));
+
+    $user->refresh();
+
+    expect($user->avatar)->not->toBeNull()
+        ->and(str_ends_with((string) $user->avatar, '.jpg'))->toBeTrue()
+        ->and(Storage::disk('public')->exists((string) $user->avatar))->toBeTrue();
 });
 
 test('email verification status is unchanged when the email address is unchanged', function () {

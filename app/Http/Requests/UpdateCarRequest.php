@@ -46,7 +46,12 @@ class UpdateCarRequest extends FormRequest
             ],
             'plate' => ['nullable', 'string', 'max:255'],
             'color' => ['nullable', Rule::enum(CarColor::class)],
-            'cover_photo' => ['nullable', 'image', 'max:5120'],
+            'cover_photo' => [
+                'nullable',
+                'file',
+                'max:5120',
+                'mimetypes:image/jpeg,image/png,image/webp,image/gif,image/bmp,image/heic,image/heif,image/heic-sequence,image/heif-sequence',
+            ],
         ];
     }
 

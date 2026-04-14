@@ -6,6 +6,7 @@ import type { BrandModelPayload } from '@/components/brand-model-select';
 import type { GenerationOption } from '@/components/brand-model-select';
 import { ColorPicker } from '@/components/color-picker';
 import InputError from '@/components/input-error';
+import { ReactImageCropDialog } from '@/components/react-image-crop-dialog';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -59,6 +60,8 @@ export default function GarageEdit({ car }: { car: CarFormDefaults }) {
     const [coverPreview, setCoverPreview] = useState<string | null>(() =>
         storageUrl(car.cover_photo),
     );
+    const [coverCropOpen, setCoverCropOpen] = useState(false);
+    const [coverCropFile, setCoverCropFile] = useState<File | null>(null);
     const { enums } = usePage<{ enums: SharedEnums }>().props;
 
     const { data, setData, processing, errors, patch } = useForm<FormFields>({
@@ -140,9 +143,8 @@ export default function GarageEdit({ car }: { car: CarFormDefaults }) {
                                             const file =
                                                 e.target.files?.[0] ?? null;
 
-                                            setData('cover_photo', file);
-
                                             if (!file) {
+                                                setData('cover_photo', null);
                                                 setCoverPreview(
                                                     storageUrl(car.cover_photo),
                                                 );
@@ -150,18 +152,9 @@ export default function GarageEdit({ car }: { car: CarFormDefaults }) {
                                                 return;
                                             }
 
-                                            const reader = new FileReader();
-                                            reader.onload = () => {
-                                                if (
-                                                    typeof reader.result ===
-                                                    'string'
-                                                ) {
-                                                    setCoverPreview(
-                                                        reader.result,
-                                                    );
-                                                }
-                                            };
-                                            reader.readAsDataURL(file);
+                                            setCoverCropFile(file);
+                                            setCoverCropOpen(true);
+                                            e.target.value = '';
                                         }}
                                     />
                                     <p className="text-xs text-muted-foreground">
@@ -319,6 +312,24 @@ export default function GarageEdit({ car }: { car: CarFormDefaults }) {
                     </CardContent>
                 </Card>
             </div>
+            <ReactImageCropDialog
+                open={coverCropOpen}
+                onOpenChange={(v) => {
+                    setCoverCropOpen(v);
+
+                    if (!v) {
+                        setCoverCropFile(null);
+                    }
+                }}
+                file={coverCropFile}
+                title="Обрезать фото автомобиля"
+                aspect={4 / 3}
+                output={{ width: 1280, height: 960, quality: 0.9 }}
+                onCropped={(cropped, previewUrl) => {
+                    setData('cover_photo', cropped);
+                    setCoverPreview(previewUrl);
+                }}
+            />
         </>
     );
 }

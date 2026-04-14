@@ -10,15 +10,23 @@ use App\Models\Car;
 use App\Models\CarOwnership;
 use App\Models\Entry;
 use App\Models\User;
+use App\Services\Images\ImageUploadNormalizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class GarageController extends Controller
 {
+    public function __construct(
+        private readonly ImageUploadNormalizer $imageUploadNormalizer,
+    ) {
+    }
+
     /**
      * Display a listing of the current user's cars.
      */
@@ -162,10 +170,10 @@ class GarageController extends Controller
                 ->get()
         );
 
-        $isCurrentOwner = $car->user_id === auth()->id();
+        $isCurrentOwner = $car->user_id === Auth::id();
 
         /** @var CarOwnership|null $myOwnership */
-        $myOwnership = $car->ownerships->firstWhere('user_id', auth()->id());
+        $myOwnership = $car->ownerships->firstWhere('user_id', Auth::id());
 
         return Inertia::render('garage/show', [
             'car' => (new CarResource($car))->resolve(),
@@ -216,7 +224,15 @@ class GarageController extends Controller
         });
 
         if ($request->hasFile('cover_photo')) {
-            $path = Storage::disk('public')->putFile('cars', $request->file('cover_photo'));
+            try {
+                $normalized = $this->imageUploadNormalizer->normalize($request->file('cover_photo'));
+            } catch (\Throwable $e) {
+                throw ValidationException::withMessages([
+                    'cover_photo' => 'Не удалось обработать изображение. Попробуйте выбрать другое фото.',
+                ]);
+            }
+
+            $path = Storage::disk('public')->putFile('cars', $normalized);
             $car->update(['cover_photo' => $path]);
         }
 
@@ -254,7 +270,15 @@ class GarageController extends Controller
                 Storage::disk('public')->delete($car->cover_photo);
             }
 
-            $path = Storage::disk('public')->putFile('cars', $request->file('cover_photo'));
+            try {
+                $normalized = $this->imageUploadNormalizer->normalize($request->file('cover_photo'));
+            } catch (\Throwable $e) {
+                throw ValidationException::withMessages([
+                    'cover_photo' => 'Не удалось обработать изображение. Попробуйте выбрать другое фото.',
+                ]);
+            }
+
+            $path = Storage::disk('public')->putFile('cars', $normalized);
             $car->update(['cover_photo' => $path]);
         }
 
@@ -274,14 +298,27 @@ class GarageController extends Controller
         $this->authorize('update', $car);
 
         $request->validate([
-            'cover_photo' => ['required', 'image', 'max:5120'],
+            'cover_photo' => [
+                'required',
+                'file',
+                'max:5120',
+                'mimetypes:image/jpeg,image/png,image/webp,image/gif,image/bmp,image/heic,image/heif,image/heic-sequence,image/heif-sequence',
+            ],
         ]);
 
         if ($car->cover_photo) {
             Storage::disk('public')->delete($car->cover_photo);
         }
 
-        $path = Storage::disk('public')->putFile('cars', $request->file('cover_photo'));
+        try {
+            $normalized = $this->imageUploadNormalizer->normalize($request->file('cover_photo'));
+        } catch (\Throwable $e) {
+            throw ValidationException::withMessages([
+                'cover_photo' => 'Не удалось обработать изображение. Попробуйте выбрать другое фото.',
+            ]);
+        }
+
+        $path = Storage::disk('public')->putFile('cars', $normalized);
         $car->update(['cover_photo' => $path]);
 
         Inertia::flash('toast', [
@@ -299,7 +336,7 @@ class GarageController extends Controller
     {
         $this->authorize('update', $car);
 
-        abort_unless($car->user_id === auth()->id(), 403);
+        abort_unless($car->user_id === Auth::id(), 403);
 
         if ($car->pendingTransfer !== null) {
             abort(403, 'Нельзя отправить в архив: ожидается передача автомобиля.');
@@ -327,7 +364,7 @@ class GarageController extends Controller
     {
         $this->authorize('restore', $car);
 
-        abort_unless($car->user_id === auth()->id(), 403);
+        abort_unless($car->user_id === Auth::id(), 403);
 
         $car->restore();
 
@@ -351,7 +388,7 @@ class GarageController extends Controller
     {
         $this->authorize('forceDelete', $car);
 
-        abort_unless($car->user_id === auth()->id(), 403);
+        abort_unless($car->user_id === Auth::id(), 403);
 
         $car->load(['entries.photos']);
 

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import InputError from '@/components/input-error';
+import { ReactImageCropDialog } from '@/components/react-image-crop-dialog';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -45,6 +46,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { DynamicIcon } from '@/lib/icons';
 import { formatDateRu, formatMileageRu, formatMoneyRu } from '@/lib/ru';
 import { storageUrl } from '@/lib/storage';
 import { cn, toUrl } from '@/lib/utils';
@@ -59,7 +61,6 @@ import {
     create as transferCreate,
     cancel as transferCancel,
 } from '@/routes/transfer';
-import { DynamicIcon } from '@/lib/icons';
 import type { CurrencyOption, EntryTypeOption, SharedEnums } from '@/types/enums';
 
 type Car = {
@@ -337,6 +338,8 @@ export default function GarageShow({
     const [activeFilter, setActiveFilter] = useState<string>('all');
     const coverPhotoInputRef = useRef<HTMLInputElement>(null);
     const [coverUploading, setCoverUploading] = useState(false);
+    const [coverCropOpen, setCoverCropOpen] = useState(false);
+    const [coverCropFile, setCoverCropFile] = useState<File | null>(null);
     const page = usePage<PageProps>();
     const authUser = page.props.auth.user;
     const { enums } = page.props;
@@ -400,7 +403,7 @@ export default function GarageShow({
                 <Card className="gap-0 py-0">
                     <CardHeader className="p-5">
                         <div className="flex flex-col gap-4 sm:flex-row">
-                            <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-xl bg-muted sm:max-w-md">
+                            <div className="relative aspect-video flex-1 w-full shrink-0 overflow-hidden rounded-xl bg-muted sm:max-w-md">
                                 {coverSrc ? (
                                     <img
                                         src={coverSrc}
@@ -425,31 +428,14 @@ export default function GarageShow({
                                                 const file =
                                                     e.target.files?.[0] ??
                                                     null;
-                                                const input = e.target;
 
                                                 if (!file) {
                                                     return;
                                                 }
 
-                                                setCoverUploading(true);
-                                                router.post(
-                                                    toUrl(
-                                                        garageUpdateCover.url(
-                                                            car.id,
-                                                        ),
-                                                    ),
-                                                    { cover_photo: file },
-                                                    {
-                                                        forceFormData: true,
-                                                        preserveScroll: true,
-                                                        onFinish: () => {
-                                                            setCoverUploading(
-                                                                false,
-                                                            );
-                                                            input.value = '';
-                                                        },
-                                                    },
-                                                );
+                                                setCoverCropFile(file);
+                                                setCoverCropOpen(true);
+                                                e.target.value = '';
                                             }}
                                         />
                                         <button
@@ -469,6 +455,35 @@ export default function GarageShow({
                                     </>
                                 ) : null}
                             </div>
+
+                            <ReactImageCropDialog
+                                open={coverCropOpen}
+                                onOpenChange={(v) => {
+                                    setCoverCropOpen(v);
+
+                                    if (!v) {
+                                        setCoverCropFile(null);
+                                    }
+                                }}
+                                file={coverCropFile}
+                                title="Обрезать фото автомобиля"
+                                aspect={16 / 9}
+                                output={{ width: 1920, height: 1080, quality: 0.9 }}
+                                onCropped={(cropped) => {
+                                    setCoverUploading(true);
+                                    router.post(
+                                        toUrl(garageUpdateCover.url(car.id)),
+                                        { cover_photo: cropped },
+                                        {
+                                            forceFormData: true,
+                                            preserveScroll: true,
+                                            onFinish: () => {
+                                                setCoverUploading(false);
+                                            },
+                                        },
+                                    );
+                                }}
+                            />
 
                             <div className="flex min-w-0 flex-1 flex-col gap-1">
                                 <CardTitle className="text-lg leading-tight">

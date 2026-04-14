@@ -8,16 +8,23 @@ use App\Http\Requests\Settings\ProfileUpdateRequest;
 use App\Models\Car;
 use App\Models\CarOwnership;
 use App\Models\Entry;
+use App\Services\Images\ImageUploadNormalizer;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ProfileController extends Controller
 {
+    public function __construct(
+        private readonly ImageUploadNormalizer $imageUploadNormalizer,
+    ) {
+    }
+
     /**
      * Show the user's profile settings page.
      */
@@ -69,12 +76,25 @@ class ProfileController extends Controller
     public function updateAvatar(Request $request): RedirectResponse
     {
         $request->validate([
-            'avatar' => ['required', 'image', 'max:2048'],
+            'avatar' => [
+                'required',
+                'file',
+                'max:2048',
+                'mimetypes:image/jpeg,image/png,image/webp,image/gif,image/bmp,image/heic,image/heif,image/heic-sequence,image/heif-sequence',
+            ],
         ]);
 
         $user = $request->user();
 
-        $path = Storage::disk('public')->putFile('avatars', $request->file('avatar'));
+        try {
+            $normalized = $this->imageUploadNormalizer->normalize($request->file('avatar'));
+        } catch (\Throwable $e) {
+            throw ValidationException::withMessages([
+                'avatar' => 'Не удалось обработать изображение. Попробуйте выбрать другое фото.',
+            ]);
+        }
+
+        $path = Storage::disk('public')->putFile('avatars', $normalized);
 
         if ($user->avatar) {
             Storage::disk('public')->delete($user->avatar);

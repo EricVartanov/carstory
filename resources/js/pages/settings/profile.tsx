@@ -5,6 +5,7 @@ import DeleteUser from '@/components/delete-user';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
+import { ReactImageCropDialog } from '@/components/react-image-crop-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,6 +39,8 @@ export default function Profile({
     const [avatarPreviewOverride, setAvatarPreviewOverride] = useState<
         string | null
     >(null);
+    const [avatarCropOpen, setAvatarCropOpen] = useState(false);
+    const [avatarCropFile, setAvatarCropFile] = useState<File | null>(null);
     const avatarPreview =
         avatarPreviewOverride ?? storageUrl(user.avatar ?? null);
 
@@ -150,39 +153,9 @@ export default function Profile({
                                     }
 
                                     setAvatarFieldError(undefined);
-                                    const reader = new FileReader();
-                                    reader.onload = () => {
-                                        if (
-                                            typeof reader.result === 'string'
-                                        ) {
-                                            setAvatarPreviewOverride(
-                                                reader.result,
-                                            );
-                                        }
-                                    };
-                                    reader.readAsDataURL(file);
-
-                                    setAvatarUploading(true);
-                                    router.post(
-                                        toUrl(profileAvatar.url()),
-                                        { avatar: file },
-                                        {
-                                            forceFormData: true,
-                                            preserveScroll: true,
-                                            onSuccess: () => {
-                                                input.value = '';
-                                            },
-                                            onError: (errs) => {
-                                                setAvatarFieldError(
-                                                    errs.avatar ?? undefined,
-                                                );
-                                                setAvatarPreviewOverride(null);
-                                            },
-                                            onFinish: () => {
-                                                setAvatarUploading(false);
-                                            },
-                                        },
-                                    );
+                                    setAvatarCropFile(file);
+                                    setAvatarCropOpen(true);
+                                    input.value = '';
                                 }}
                             />
                             <Button
@@ -204,6 +177,41 @@ export default function Profile({
                     <InputError
                         className="-mt-2"
                         message={avatarFieldError}
+                    />
+                    <ReactImageCropDialog
+                        open={avatarCropOpen}
+                        onOpenChange={(v) => {
+                            setAvatarCropOpen(v);
+
+                            if (!v) {
+                                setAvatarCropFile(null);
+                            }
+                        }}
+                        file={avatarCropFile}
+                        title="Обрезать аватар"
+                        aspect={1}
+                        output={{ width: 512, height: 512, quality: 0.9 }}
+                        onCropped={(cropped, previewUrl) => {
+                            setAvatarPreviewOverride(previewUrl);
+                            setAvatarUploading(true);
+                            router.post(
+                                toUrl(profileAvatar.url()),
+                                { avatar: cropped },
+                                {
+                                    forceFormData: true,
+                                    preserveScroll: true,
+                                    onError: (errs) => {
+                                        setAvatarFieldError(
+                                            errs.avatar ?? undefined,
+                                        );
+                                        setAvatarPreviewOverride(null);
+                                    },
+                                    onFinish: () => {
+                                        setAvatarUploading(false);
+                                    },
+                                },
+                            );
+                        }}
                     />
 
                     <form

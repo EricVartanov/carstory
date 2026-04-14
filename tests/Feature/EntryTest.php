@@ -4,6 +4,7 @@ use App\Models\Car;
 use App\Models\Entry;
 use App\Models\EntryPhoto;
 use App\Models\User;
+use App\Services\Images\ImageTranscoder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -34,7 +35,7 @@ test('current owner can create an entry with photos', function () {
     $response->assertRedirect(route('garage.show', $car));
 
     $entry = Entry::query()->where('car_id', $car->id)->firstOrFail();
-    expect($entry->type)->toBe('service');
+    expect($entry->type->value)->toBe('service');
 
     $photos = EntryPhoto::query()->where('entry_id', $entry->id)->orderBy('order')->get();
     expect($photos)->toHaveCount(2);
@@ -42,6 +43,43 @@ test('current owner can create an entry with photos', function () {
     foreach ($photos as $photo) {
         Storage::disk('public')->assertExists($photo->path);
     }
+});
+
+test('current owner can create an entry with HEIC photo (transcoded)', function () {
+    Storage::fake('public');
+
+    app()->bind(ImageTranscoder::class, fn () => new class implements ImageTranscoder
+    {
+        public function toJpeg(UploadedFile $file, int $quality = 85): UploadedFile
+        {
+            return UploadedFile::fake()->image('converted.jpg', 100, 100);
+        }
+    });
+
+    $user = User::factory()->create();
+    $car = Car::factory()->create([
+        'user_id' => $user->id,
+    ]);
+
+    $this->actingAs($user);
+
+    $response = $this->post(route('entries.store', $car), [
+        'date' => now()->toDateString(),
+        'type' => 'note',
+        'currency' => 'RUB',
+        'photos' => [
+            UploadedFile::fake()->create('one.heic', 200, 'image/heic'),
+        ],
+    ]);
+
+    $response->assertRedirect(route('garage.show', $car));
+
+    $entry = Entry::query()->where('car_id', $car->id)->firstOrFail();
+    $photo = EntryPhoto::query()->where('entry_id', $entry->id)->firstOrFail();
+
+    expect($photo->original_name)->toBe('one.heic');
+    Storage::disk('public')->assertExists($photo->path);
+    expect(str_ends_with($photo->path, '.jpg'))->toBeTrue();
 });
 
 test('non owner cannot create an entry', function () {
