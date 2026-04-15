@@ -4,7 +4,14 @@ import 'react-image-crop/dist/ReactCrop.css';
 
 import type { Crop, PixelCrop } from 'react-image-crop';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+    Dialog,
+    DialogBody,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
 type Props = {
@@ -158,12 +165,17 @@ export function ReactImageCropDialog({ open, onOpenChange, file, title, aspect, 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="p-0">
-                <div className="grid gap-4 p-6">
-                    <DialogHeader>
-                        <DialogTitle>{title}</DialogTitle>
-                    </DialogHeader>
+                <DialogHeader className="shrink-0 border-b px-6 py-4">
+                    <DialogTitle>{title}</DialogTitle>
+                </DialogHeader>
 
-                    <div className={cn('grid gap-3', exporting ? 'opacity-70' : '')}>
+                <DialogBody className="px-6 py-4">
+                    <div
+                        className={cn(
+                            'grid gap-3',
+                            exporting ? 'opacity-70' : '',
+                        )}
+                    >
                         {objectUrl ? (
                             <ReactCrop
                                 crop={crop}
@@ -176,11 +188,16 @@ export function ReactImageCropDialog({ open, onOpenChange, file, title, aspect, 
                                     ref={imgRef}
                                     src={objectUrl}
                                     alt=""
-                                    className="max-h-[60vh] max-w-[min(90vw,720px)] select-none rounded-md"
+                                    className="max-h-[60dvh] w-full max-w-[min(90vw,720px)] select-none rounded-md object-contain"
                                     draggable={false}
                                     onLoad={(e) => {
                                         const img = e.currentTarget;
-                                        const next = createCenteredAspectCrop(img.width, img.height, aspect);
+                                        const next =
+                                            createCenteredAspectCrop(
+                                                img.width,
+                                                img.height,
+                                                aspect,
+                                            );
                                         setCrop(next);
                                     }}
                                 />
@@ -191,25 +208,30 @@ export function ReactImageCropDialog({ open, onOpenChange, file, title, aspect, 
                             </div>
                         )}
                     </div>
+                </DialogBody>
 
-                    <DialogFooter>
-                        <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} disabled={exporting}>
-                            Отмена
-                        </Button>
-                        <Button
-                            type="button"
-                            onClick={confirm}
-                            disabled={
-                                exporting ||
-                                !completedCrop ||
-                                completedCrop.width <= 0 ||
-                                completedCrop.height <= 0
-                            }
-                        >
-                            Сохранить
-                        </Button>
-                    </DialogFooter>
-                </div>
+                <DialogFooter className="shrink-0 border-t px-6 py-4">
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => onOpenChange(false)}
+                        disabled={exporting}
+                    >
+                        Отмена
+                    </Button>
+                    <Button
+                        type="button"
+                        onClick={confirm}
+                        disabled={
+                            exporting ||
+                            !completedCrop ||
+                            completedCrop.width <= 0 ||
+                            completedCrop.height <= 0
+                        }
+                    >
+                        Сохранить
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );

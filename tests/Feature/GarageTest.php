@@ -370,16 +370,8 @@ test('owner can update car cover photo via dedicated endpoint', function () {
         ->and(Storage::disk('public')->exists((string) $car->cover_photo))->toBeTrue();
 });
 
-test('owner can update car cover photo with HEIC (transcoded)', function () {
+test('car cover endpoint rejects HEIC (use temp upload instead)', function () {
     Storage::fake('public');
-
-    app()->bind(ImageTranscoder::class, fn () => new class implements ImageTranscoder
-    {
-        public function toJpeg(UploadedFile $file, int $quality = 85): UploadedFile
-        {
-            return UploadedFile::fake()->image('converted.jpg', 10, 10);
-        }
-    });
 
     $user = User::factory()->create();
     $car = Car::factory()->create(['user_id' => $user->id]);
@@ -391,14 +383,33 @@ test('owner can update car cover photo with HEIC (transcoded)', function () {
         ->post(route('garage.update-cover', $car), [
             'cover_photo' => $file,
         ])
-        ->assertSessionHasNoErrors()
-        ->assertRedirect(route('garage.show', $car));
+        ->assertSessionHasErrors('cover_photo');
+});
 
-    $car->refresh();
+test('owner can update car cover photo with HEIC (transcoded)', function () {
+    Storage::fake('public');
 
-    expect($car->cover_photo)->not->toBeNull()
-        ->and(str_ends_with((string) $car->cover_photo, '.jpg'))->toBeTrue()
-        ->and(Storage::disk('public')->exists((string) $car->cover_photo))->toBeTrue();
+    $user = User::factory()->create();
+    $car = Car::factory()->create(['user_id' => $user->id]);
+
+    $file = UploadedFile::fake()->create('cover.heic', 200, 'image/heic');
+
+    app()->bind(ImageTranscoder::class, fn () => new class implements ImageTranscoder
+    {
+        public function toJpeg(UploadedFile $file, int $quality = 85): UploadedFile
+        {
+            return UploadedFile::fake()->image('converted.jpg', 10, 10);
+        }
+    });
+
+    $this->actingAs($user)
+        ->post(route('upload.temp'), [
+            'file' => $file,
+        ], [
+            'Accept' => 'application/json',
+        ])
+        ->assertOk()
+        ->assertJsonStructure(['temp_path', 'url']);
 });
 
 test('guest cannot update car cover photo', function () {

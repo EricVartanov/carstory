@@ -3,13 +3,14 @@ import { useEffect, useRef, useState } from 'react';
 import SecurityController from '@/actions/App/Http/Controllers/Settings/SecurityController';
 import DeleteUser from '@/components/delete-user';
 import Heading from '@/components/heading';
+import { ImageCropModal } from '@/components/image-crop-modal';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
-import { ReactImageCropDialog } from '@/components/react-image-crop-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { UserAvatar } from '@/components/user-avatar';
+import { useImageCrop } from '@/hooks/use-image-crop';
 import { storageUrl } from '@/lib/storage';
 import { toUrl } from '@/lib/utils';
 import { avatar as profileAvatar, edit, update as profileUpdate } from '@/routes/profile';
@@ -35,12 +36,20 @@ export default function Profile({
 }) {
     const passwordInput = useRef<HTMLInputElement>(null);
     const currentPasswordInput = useRef<HTMLInputElement>(null);
-    const avatarInputRef = useRef<HTMLInputElement>(null);
     const [avatarPreviewOverride, setAvatarPreviewOverride] = useState<
         string | null
     >(null);
-    const [avatarCropOpen, setAvatarCropOpen] = useState(false);
-    const [avatarCropFile, setAvatarCropFile] = useState<File | null>(null);
+    const {
+        fileInputRef: avatarFileInputRef,
+        modalOpen: avatarModalOpen,
+        uploading: avatarCropUploading,
+        tempResult: avatarTempResult,
+        openFilePicker: openAvatarFilePicker,
+        handleFileChange: handleAvatarFileChange,
+        handleClose: handleAvatarClose,
+        setTempResult: setAvatarTempResult,
+        setModalOpen: setAvatarModalOpen,
+    } = useImageCrop();
     const avatarPreview =
         avatarPreviewOverride ?? storageUrl(user.avatar ?? null);
 
@@ -136,36 +145,20 @@ export default function Profile({
                         />
                         <div className="flex flex-col items-center gap-2 sm:items-start">
                             <input
-                                ref={avatarInputRef}
+                                ref={avatarFileInputRef}
                                 type="file"
                                 name="avatar"
-                                accept="image/*"
+                                accept="image/jpeg,image/png,image/heic,image/heif"
                                 className="sr-only"
                                 disabled={avatarUploading}
-                                onChange={(e) => {
-                                    const file = e.target.files?.[0] ?? null;
-                                    const input = e.target;
-
-                                    if (!file) {
-                                        setAvatarPreviewOverride(null);
-
-                                        return;
-                                    }
-
-                                    setAvatarFieldError(undefined);
-                                    setAvatarCropFile(file);
-                                    setAvatarCropOpen(true);
-                                    input.value = '';
-                                }}
+                                onChange={handleAvatarFileChange}
                             />
                             <Button
                                 type="button"
                                 variant="secondary"
                                 size="sm"
                                 disabled={avatarUploading}
-                                onClick={() =>
-                                    avatarInputRef.current?.click()
-                                }
+                                onClick={openAvatarFilePicker}
                             >
                                 Изменить фото
                             </Button>
@@ -178,25 +171,27 @@ export default function Profile({
                         className="-mt-2"
                         message={avatarFieldError}
                     />
-                    <ReactImageCropDialog
-                        open={avatarCropOpen}
-                        onOpenChange={(v) => {
-                            setAvatarCropOpen(v);
-
-                            if (!v) {
-                                setAvatarCropFile(null);
-                            }
-                        }}
-                        file={avatarCropFile}
-                        title="Обрезать аватар"
+                    <ImageCropModal
+                        open={avatarModalOpen}
+                        uploading={avatarCropUploading}
+                        tempResult={avatarTempResult}
+                        onClose={handleAvatarClose}
+                        title="Фото профиля"
                         aspect={1}
-                        output={{ width: 512, height: 512, quality: 0.9 }}
-                        onCropped={(cropped, previewUrl) => {
-                            setAvatarPreviewOverride(previewUrl);
+                        circularCrop
+                        onSave={async (blob, tempPath) => {
+                            setAvatarFieldError(undefined);
                             setAvatarUploading(true);
+
+                            const file = new File([blob], 'avatar.jpg', {
+                                type: 'image/jpeg',
+                            });
+
+                            setAvatarPreviewOverride(URL.createObjectURL(file));
+
                             router.post(
                                 toUrl(profileAvatar.url()),
-                                { avatar: cropped },
+                                { avatar: file, temp_path: tempPath },
                                 {
                                     forceFormData: true,
                                     preserveScroll: true,
@@ -206,8 +201,10 @@ export default function Profile({
                                         );
                                         setAvatarPreviewOverride(null);
                                     },
-                                    onFinish: () => {
+                                    onFinish: async () => {
                                         setAvatarUploading(false);
+                                        setAvatarTempResult(null);
+                                        setAvatarModalOpen(false);
                                     },
                                 },
                             );

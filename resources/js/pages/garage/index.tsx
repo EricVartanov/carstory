@@ -5,6 +5,7 @@ import { CardMotion } from '@/components/card-motion';
 import {
     AlertDialog,
     AlertDialogAction,
+    AlertDialogBody,
     AlertDialogCancel,
     AlertDialogContent,
     AlertDialogDescription,
@@ -380,6 +381,7 @@ export default function GarageIndex({
                             отменить.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
+                    <AlertDialogBody />
                     <AlertDialogFooter>
                         <AlertDialogCancel>Отмена</AlertDialogCancel>
                         <AlertDialogAction

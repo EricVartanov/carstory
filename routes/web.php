@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\CarCatalogController;
+use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\CarTransferController;
 use App\Http\Controllers\EntryController;
 use App\Http\Controllers\GarageController;
@@ -18,6 +19,11 @@ Route::prefix('api')->group(function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
+
+    Route::prefix('api')->group(function () {
+        Route::post('upload/temp', [UploadController::class, 'temp'])->name('upload.temp');
+        Route::delete('upload/temp', [UploadController::class, 'deleteTemp'])->name('upload.delete-temp');
+    });
 
     Route::get('garage', [GarageController::class, 'index'])->name('garage.index');
     Route::get('garage/create', [GarageController::class, 'create'])->name('garage.create');

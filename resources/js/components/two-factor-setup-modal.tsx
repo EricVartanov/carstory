@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
+    DialogBody,
     DialogDescription,
     DialogHeader,
     DialogTitle,
@@ -328,22 +329,24 @@ export default function TwoFactorSetupModal({
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex flex-col items-center space-y-5">
-                    {showVerificationStep ? (
-                        <TwoFactorVerificationStep
-                            onClose={handleClose}
-                            onBack={() => setShowVerificationStep(false)}
-                        />
-                    ) : (
-                        <TwoFactorSetupStep
-                            qrCodeSvg={qrCodeSvg}
-                            manualSetupKey={manualSetupKey}
-                            buttonText={modalConfig.buttonText}
-                            onNextStep={handleModalNextStep}
-                            errors={errors}
-                        />
-                    )}
-                </div>
+                <DialogBody>
+                    <div className="flex flex-col items-center space-y-5">
+                        {showVerificationStep ? (
+                            <TwoFactorVerificationStep
+                                onClose={handleClose}
+                                onBack={() => setShowVerificationStep(false)}
+                            />
+                        ) : (
+                            <TwoFactorSetupStep
+                                qrCodeSvg={qrCodeSvg}
+                                manualSetupKey={manualSetupKey}
+                                buttonText={modalConfig.buttonText}
+                                onNextStep={handleModalNextStep}
+                                errors={errors}
+                            />
+                        )}
+                    </div>
+                </DialogBody>
             </DialogContent>
         </Dialog>
     );

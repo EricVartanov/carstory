@@ -10,23 +10,16 @@ use App\Models\Car;
 use App\Models\CarOwnership;
 use App\Models\Entry;
 use App\Models\User;
-use App\Services\Images\ImageUploadNormalizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class GarageController extends Controller
 {
-    public function __construct(
-        private readonly ImageUploadNormalizer $imageUploadNormalizer,
-    ) {
-    }
-
     /**
      * Display a listing of the current user's cars.
      */
@@ -224,16 +217,14 @@ class GarageController extends Controller
         });
 
         if ($request->hasFile('cover_photo')) {
-            try {
-                $normalized = $this->imageUploadNormalizer->normalize($request->file('cover_photo'));
-            } catch (\Throwable $e) {
-                throw ValidationException::withMessages([
-                    'cover_photo' => 'Не удалось обработать изображение. Попробуйте выбрать другое фото.',
-                ]);
-            }
-
-            $path = Storage::disk('public')->putFile('cars', $normalized);
+            $path = Storage::disk('public')->putFile('cars', $request->file('cover_photo'));
             $car->update(['cover_photo' => $path]);
+
+            $tempPath = (string) $request->input('temp_path', '');
+
+            if ($tempPath !== '' && str_starts_with($tempPath, 'temp/')) {
+                Storage::disk('public')->delete($tempPath);
+            }
         }
 
         Inertia::flash('toast', [
@@ -270,16 +261,14 @@ class GarageController extends Controller
                 Storage::disk('public')->delete($car->cover_photo);
             }
 
-            try {
-                $normalized = $this->imageUploadNormalizer->normalize($request->file('cover_photo'));
-            } catch (\Throwable $e) {
-                throw ValidationException::withMessages([
-                    'cover_photo' => 'Не удалось обработать изображение. Попробуйте выбрать другое фото.',
-                ]);
-            }
-
-            $path = Storage::disk('public')->putFile('cars', $normalized);
+            $path = Storage::disk('public')->putFile('cars', $request->file('cover_photo'));
             $car->update(['cover_photo' => $path]);
+
+            $tempPath = (string) $request->input('temp_path', '');
+
+            if ($tempPath !== '' && str_starts_with($tempPath, 'temp/')) {
+                Storage::disk('public')->delete($tempPath);
+            }
         }
 
         Inertia::flash('toast', [
@@ -302,24 +291,23 @@ class GarageController extends Controller
                 'required',
                 'file',
                 'max:5120',
-                'mimetypes:image/jpeg,image/png,image/webp,image/gif,image/bmp,image/heic,image/heif,image/heic-sequence,image/heif-sequence',
+                'mimes:jpg,jpeg',
             ],
+            'temp_path' => ['nullable', 'string'],
         ]);
 
         if ($car->cover_photo) {
             Storage::disk('public')->delete($car->cover_photo);
         }
 
-        try {
-            $normalized = $this->imageUploadNormalizer->normalize($request->file('cover_photo'));
-        } catch (\Throwable $e) {
-            throw ValidationException::withMessages([
-                'cover_photo' => 'Не удалось обработать изображение. Попробуйте выбрать другое фото.',
-            ]);
-        }
-
-        $path = Storage::disk('public')->putFile('cars', $normalized);
+        $path = Storage::disk('public')->putFile('cars', $request->file('cover_photo'));
         $car->update(['cover_photo' => $path]);
+
+        $tempPath = (string) $request->input('temp_path', '');
+
+        if ($tempPath !== '' && str_starts_with($tempPath, 'temp/')) {
+            Storage::disk('public')->delete($tempPath);
+        }
 
         Inertia::flash('toast', [
             'type' => 'success',

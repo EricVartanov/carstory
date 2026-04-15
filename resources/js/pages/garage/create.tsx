@@ -1,12 +1,12 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { Car } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { BrandModelSelect } from '@/components/brand-model-select';
 import type { BrandModelPayload } from '@/components/brand-model-select';
 import type { GenerationOption } from '@/components/brand-model-select';
 import { ColorPicker } from '@/components/color-picker';
+import { ImageCropModal } from '@/components/image-crop-modal';
 import InputError from '@/components/input-error';
-import { ReactImageCropDialog } from '@/components/react-image-crop-dialog';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -18,6 +18,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { useImageCrop } from '@/hooks/use-image-crop';
 import { toUrl } from '@/lib/utils';
 import { index, store } from '@/routes/garage';
 import type { SharedEnums } from '@/types/enums';
@@ -34,6 +35,7 @@ type FormFields = {
     plate: string;
     color: string;
     cover_photo: File | null;
+    temp_path: string | null;
 };
 
 function applyBrandModel(data: FormFields, p: BrandModelPayload): FormFields {
@@ -49,10 +51,18 @@ function applyBrandModel(data: FormFields, p: BrandModelPayload): FormFields {
 }
 
 export default function GarageCreate() {
-    const coverInputRef = useRef<HTMLInputElement>(null);
     const [coverPreview, setCoverPreview] = useState<string | null>(null);
-    const [coverCropOpen, setCoverCropOpen] = useState(false);
-    const [coverCropFile, setCoverCropFile] = useState<File | null>(null);
+    const {
+        fileInputRef: coverFileInputRef,
+        modalOpen: coverModalOpen,
+        uploading: coverUploading,
+        tempResult: coverTempResult,
+        openFilePicker: openCoverFilePicker,
+        handleFileChange: handleCoverFileChange,
+        handleClose: handleCoverClose,
+        setTempResult: setCoverTempResult,
+        setModalOpen: setCoverModalOpen,
+    } = useImageCrop();
     const { enums } = usePage<{ enums: SharedEnums }>().props;
 
     const { data, setData, processing, errors, post } = useForm<FormFields>({
@@ -67,12 +77,16 @@ export default function GarageCreate() {
         plate: '',
         color: '',
         cover_photo: null,
+        temp_path: null,
     });
 
     function submit(e: React.FormEvent) {
         e.preventDefault();
         post(toUrl(store.url()), {
             forceFormData: data.cover_photo !== null,
+            onFinish: () => {
+                setData('temp_path', null);
+            },
         });
     }
 
@@ -96,16 +110,14 @@ export default function GarageCreate() {
                                 <div className="grid gap-2">
                                     <div
                                         className="relative flex aspect-4/3 w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-secondary transition-opacity hover:opacity-95 lg:aspect-square"
-                                        onClick={() =>
-                                            coverInputRef.current?.click()
-                                        }
+                                        onClick={openCoverFilePicker}
                                         onKeyDown={(e) => {
                                             if (
                                                 e.key === 'Enter' ||
                                                 e.key === ' '
                                             ) {
                                                 e.preventDefault();
-                                                coverInputRef.current?.click();
+                                                openCoverFilePicker();
                                             }
                                         }}
                                         role="button"
@@ -126,26 +138,12 @@ export default function GarageCreate() {
                                         )}
                                     </div>
                                     <input
-                                        ref={coverInputRef}
+                                        ref={coverFileInputRef}
                                         type="file"
                                         name="cover_photo"
                                         accept="image/*"
                                         className="sr-only"
-                                        onChange={(e) => {
-                                            const file =
-                                                e.target.files?.[0] ?? null;
-
-                                            if (!file) {
-                                                setData('cover_photo', null);
-                                                setCoverPreview(null);
-
-                                                return;
-                                            }
-
-                                            setCoverCropFile(file);
-                                            setCoverCropOpen(true);
-                                            e.target.value = '';
-                                        }}
+                                        onChange={handleCoverFileChange}
                                     />
                                     <p className="text-xs text-muted-foreground">
                                         Фото автомобиля (необязательно)
@@ -297,22 +295,24 @@ export default function GarageCreate() {
                     </CardContent>
                 </Card>
             </div>
-            <ReactImageCropDialog
-                open={coverCropOpen}
-                onOpenChange={(v) => {
-                    setCoverCropOpen(v);
-
-                    if (!v) {
-                        setCoverCropFile(null);
-                    }
-                }}
-                file={coverCropFile}
-                title="Обрезать фото автомобиля"
+            <ImageCropModal
+                open={coverModalOpen}
+                uploading={coverUploading}
+                tempResult={coverTempResult}
+                onClose={handleCoverClose}
+                title="Фото автомобиля"
                 aspect={4 / 3}
-                output={{ width: 1280, height: 960, quality: 0.9 }}
-                onCropped={(cropped, previewUrl) => {
-                    setData('cover_photo', cropped);
-                    setCoverPreview(previewUrl);
+                onSave={(blob, tempPath) => {
+                    const file = new File([blob], 'cover.jpg', {
+                        type: 'image/jpeg',
+                    });
+
+                    setData('cover_photo', file);
+                    setData('temp_path', tempPath);
+                    setCoverPreview(URL.createObjectURL(file));
+
+                    setCoverTempResult(null);
+                    setCoverModalOpen(false);
                 }}
             />
         </>

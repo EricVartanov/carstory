@@ -6,12 +6,18 @@ import {
     Pencil,
     Trash2,
 } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
+import Lightbox from 'yet-another-react-lightbox';
+import 'yet-another-react-lightbox/styles.css';
+import Thumbnails from 'yet-another-react-lightbox/plugins/thumbnails';
+import 'yet-another-react-lightbox/plugins/thumbnails.css';
+import Zoom from 'yet-another-react-lightbox/plugins/zoom';
+import { ImageCropModal } from '@/components/image-crop-modal';
 import InputError from '@/components/input-error';
-import { ReactImageCropDialog } from '@/components/react-image-crop-dialog';
 import {
     AlertDialog,
     AlertDialogAction,
+    AlertDialogBody,
     AlertDialogCancel,
     AlertDialogContent,
     AlertDialogDescription,
@@ -30,6 +36,7 @@ import {
 } from '@/components/ui/card';
 import {
     Dialog,
+    DialogBody,
     DialogContent,
     DialogDescription,
     DialogFooter,
@@ -46,6 +53,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useImageCrop } from '@/hooks/use-image-crop';
 import { DynamicIcon } from '@/lib/icons';
 import { formatDateRu, formatMileageRu, formatMoneyRu } from '@/lib/ru';
 import { storageUrl } from '@/lib/storage';
@@ -166,156 +174,182 @@ function EntryModal({
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="p-0">
-                <form onSubmit={submit} className="grid gap-4 p-6">
-                    <DialogHeader>
-                        <DialogTitle>Добавить запись</DialogTitle>
-                        <DialogDescription>
-                            Заполните детали и сохраните в историю автомобиля.
-                        </DialogDescription>
-                    </DialogHeader>
+                <DialogHeader className="shrink-0 border-b px-6 py-4">
+                    <DialogTitle>Добавить запись</DialogTitle>
+                    <DialogDescription>
+                        Заполните детали и сохраните в историю автомобиля.
+                    </DialogDescription>
+                </DialogHeader>
 
-                    <div className="grid gap-2">
-                        <Label>Тип</Label>
-                        <Select
-                            value={data.type}
-                            onValueChange={(v) => setData('type', v)}
-                        >
-                            <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Выберите тип" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {enums.entryTypes.map((type: EntryTypeOption) => (
-                                    <SelectItem key={type.id} value={type.id}>
-                                        {type.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <InputError message={errors.type} />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="date">Дата</Label>
-                        <Input
-                            id="date"
-                            type="date"
-                            value={data.date}
-                            onChange={(e) => setData('date', e.target.value)}
-                            required
-                        />
-                        <InputError message={errors.date} />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="mileage">Пробег</Label>
-                        <Input
-                            id="mileage"
-                            inputMode="numeric"
-                            type="number"
-                            min={0}
-                            placeholder="25000"
-                            value={data.mileage}
-                            onChange={(e) => setData('mileage', e.target.value)}
-                        />
-                        <InputError message={errors.mileage} />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="title">Заголовок</Label>
-                        <Input
-                            id="title"
-                            placeholder="Например: замена масла"
-                            value={data.title}
-                            onChange={(e) => setData('title', e.target.value)}
-                        />
-                        <InputError message={errors.title} />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="body">Заметка</Label>
-                        <Textarea
-                            id="body"
-                            className="min-h-24"
-                            value={data.body}
-                            onChange={(e) => setData('body', e.target.value)}
-                        />
-                        <InputError message={errors.body} />
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <DialogBody className="px-6 py-4">
+                    <form
+                        id="garage-entry-form"
+                        onSubmit={submit}
+                        className="grid gap-4"
+                    >
                         <div className="grid gap-2">
-                            <Label htmlFor="amount">Сумма</Label>
-                            <Input
-                                id="amount"
-                                inputMode="decimal"
-                                type="number"
-                                min={0}
-                                step="0.01"
-                                value={data.amount}
-                                onChange={(e) =>
-                                    setData('amount', e.target.value)
-                                }
-                            />
-                            <InputError message={errors.amount} />
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label>Валюта</Label>
+                            <Label>Тип</Label>
                             <Select
-                                value={data.currency}
-                                onValueChange={(v) => setData('currency', v)}
+                                value={data.type}
+                                onValueChange={(v) => setData('type', v)}
                             >
                                 <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Валюта" />
+                                    <SelectValue placeholder="Выберите тип" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {enums.currencies.map(
-                                        (currency: CurrencyOption) => (
+                                    {enums.entryTypes.map(
+                                        (type: EntryTypeOption) => (
                                             <SelectItem
-                                                key={currency.id}
-                                                value={currency.id}
+                                                key={type.id}
+                                                value={type.id}
                                             >
-                                                {currency.symbol} {currency.id}
+                                                {type.label}
                                             </SelectItem>
                                         ),
                                     )}
                                 </SelectContent>
                             </Select>
-                            <InputError message={errors.currency} />
+                            <InputError message={errors.type} />
                         </div>
-                    </div>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="photos">Фото</Label>
-                        <Input
-                            id="photos"
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={(e) =>
-                                setData(
-                                    'photos',
-                                    Array.from(e.target.files ?? []),
-                                )
-                            }
-                        />
-                        <InputError message={errors.photos} />
-                    </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="date">Дата</Label>
+                            <Input
+                                id="date"
+                                type="date"
+                                value={data.date}
+                                onChange={(e) =>
+                                    setData('date', e.target.value)
+                                }
+                                required
+                            />
+                            <InputError message={errors.date} />
+                        </div>
 
-                    <DialogFooter>
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => onOpenChange(false)}
-                            disabled={processing}
-                        >
-                            Отмена
-                        </Button>
-                        <Button type="submit" disabled={processing}>
-                            Сохранить
-                        </Button>
-                    </DialogFooter>
-                </form>
+                        <div className="grid gap-2">
+                            <Label htmlFor="mileage">Пробег</Label>
+                            <Input
+                                id="mileage"
+                                inputMode="numeric"
+                                type="number"
+                                min={0}
+                                placeholder="25000"
+                                value={data.mileage}
+                                onChange={(e) =>
+                                    setData('mileage', e.target.value)
+                                }
+                            />
+                            <InputError message={errors.mileage} />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="title">Заголовок</Label>
+                            <Input
+                                id="title"
+                                placeholder="Например: замена масла"
+                                value={data.title}
+                                onChange={(e) =>
+                                    setData('title', e.target.value)
+                                }
+                            />
+                            <InputError message={errors.title} />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="body">Заметка</Label>
+                            <Textarea
+                                id="body"
+                                className="min-h-24"
+                                value={data.body}
+                                onChange={(e) =>
+                                    setData('body', e.target.value)
+                                }
+                            />
+                            <InputError message={errors.body} />
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="grid gap-2">
+                                <Label htmlFor="amount">Сумма</Label>
+                                <Input
+                                    id="amount"
+                                    inputMode="decimal"
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    value={data.amount}
+                                    onChange={(e) =>
+                                        setData('amount', e.target.value)
+                                    }
+                                />
+                                <InputError message={errors.amount} />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label>Валюта</Label>
+                                <Select
+                                    value={data.currency}
+                                    onValueChange={(v) =>
+                                        setData('currency', v)
+                                    }
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Валюта" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {enums.currencies.map(
+                                            (currency: CurrencyOption) => (
+                                                <SelectItem
+                                                    key={currency.id}
+                                                    value={currency.id}
+                                                >
+                                                    {currency.symbol}{' '}
+                                                    {currency.id}
+                                                </SelectItem>
+                                            ),
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                                <InputError message={errors.currency} />
+                            </div>
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="photos">Фото</Label>
+                            <Input
+                                id="photos"
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={(e) =>
+                                    setData(
+                                        'photos',
+                                        Array.from(e.target.files ?? []),
+                                    )
+                                }
+                            />
+                            <InputError message={errors.photos} />
+                        </div>
+                    </form>
+                </DialogBody>
+
+                <DialogFooter className="shrink-0 border-t px-6 py-4">
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => onOpenChange(false)}
+                        disabled={processing}
+                    >
+                        Отмена
+                    </Button>
+                    <Button
+                        type="submit"
+                        form="garage-entry-form"
+                        disabled={processing}
+                    >
+                        Сохранить
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );
@@ -336,13 +370,34 @@ export default function GarageShow({
     const [modalOpen, setModalOpen] = useState(false);
     const [archiveOpen, setArchiveOpen] = useState(false);
     const [activeFilter, setActiveFilter] = useState<string>('all');
-    const coverPhotoInputRef = useRef<HTMLInputElement>(null);
     const [coverUploading, setCoverUploading] = useState(false);
-    const [coverCropOpen, setCoverCropOpen] = useState(false);
-    const [coverCropFile, setCoverCropFile] = useState<File | null>(null);
+    const {
+        fileInputRef: coverFileInputRef,
+        modalOpen: coverModalOpen,
+        uploading: coverCropUploading,
+        tempResult: coverTempResult,
+        openFilePicker: openCoverFilePicker,
+        handleFileChange: handleCoverFileChange,
+        handleClose: handleCoverClose,
+        setTempResult: setCoverTempResult,
+        setModalOpen: setCoverModalOpen,
+    } = useImageCrop();
     const page = usePage<PageProps>();
     const authUser = page.props.auth.user;
     const { enums } = page.props;
+    const [lightbox, setLightbox] = useState<{
+        open: boolean;
+        slides: { src: string }[];
+        index: number;
+    }>({ open: false, slides: [], index: 0 });
+
+    const openLightbox = (photos: EntryPhoto[], index: number) => {
+        setLightbox({
+            open: true,
+            slides: photos.map((p) => ({ src: p.url })),
+            index,
+        });
+    };
 
     const historyFilters = useMemo(() => {
         return [
@@ -418,32 +473,18 @@ export default function GarageShow({
                                 {isCurrentOwner ? (
                                     <>
                                         <input
-                                            ref={coverPhotoInputRef}
+                                            ref={coverFileInputRef}
                                             type="file"
                                             name="cover_photo"
                                             accept="image/*"
                                             className="sr-only"
                                             disabled={coverUploading}
-                                            onChange={(e) => {
-                                                const file =
-                                                    e.target.files?.[0] ??
-                                                    null;
-
-                                                if (!file) {
-                                                    return;
-                                                }
-
-                                                setCoverCropFile(file);
-                                                setCoverCropOpen(true);
-                                                e.target.value = '';
-                                            }}
+                                            onChange={handleCoverFileChange}
                                         />
                                         <button
                                             type="button"
                                             disabled={coverUploading}
-                                            onClick={() =>
-                                                coverPhotoInputRef.current?.click()
-                                            }
+                                            onClick={openCoverFilePicker}
                                             className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-lg bg-black/50 px-2 py-1 text-xs text-white transition-opacity hover:bg-black/60 disabled:opacity-50"
                                         >
                                             <Camera
@@ -456,29 +497,33 @@ export default function GarageShow({
                                 ) : null}
                             </div>
 
-                            <ReactImageCropDialog
-                                open={coverCropOpen}
-                                onOpenChange={(v) => {
-                                    setCoverCropOpen(v);
-
-                                    if (!v) {
-                                        setCoverCropFile(null);
-                                    }
-                                }}
-                                file={coverCropFile}
-                                title="Обрезать фото автомобиля"
+                            <ImageCropModal
+                                open={coverModalOpen}
+                                uploading={coverCropUploading}
+                                tempResult={coverTempResult}
+                                onClose={handleCoverClose}
+                                title="Фото автомобиля"
                                 aspect={16 / 9}
-                                output={{ width: 1920, height: 1080, quality: 0.9 }}
-                                onCropped={(cropped) => {
+                                onSave={async (blob, tempPath) => {
                                     setCoverUploading(true);
+
+                                    const file = new File([blob], 'cover.jpg', {
+                                        type: 'image/jpeg',
+                                    });
+
                                     router.post(
                                         toUrl(garageUpdateCover.url(car.id)),
-                                        { cover_photo: cropped },
+                                        {
+                                            cover_photo: file,
+                                            temp_path: tempPath,
+                                        },
                                         {
                                             forceFormData: true,
                                             preserveScroll: true,
                                             onFinish: () => {
                                                 setCoverUploading(false);
+                                                setCoverTempResult(null);
+                                                setCoverModalOpen(false);
                                             },
                                         },
                                     );
@@ -796,29 +841,84 @@ export default function GarageShow({
 
                                         {entry.photos?.length ? (
                                             <CardContent className="pt-3 pb-0">
-                                                <div className="grid grid-cols-3 gap-2">
-                                                    {entry.photos.map(
-                                                        (photo) => (
-                                                            <a
-                                                                key={photo.id}
-                                                                href={photo.url}
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                                className="block"
-                                                            >
-                                                                <img
-                                                                    src={
-                                                                        photo.url
-                                                                    }
-                                                                    alt={
-                                                                        photo.original_name ??
-                                                                        'Фото'
-                                                                    }
-                                                                    className="aspect-square w-full rounded-md object-cover"
-                                                                />
-                                                            </a>
-                                                        ),
-                                                    )}
+                                                <div
+                                                    className={(() => {
+                                                        const count =
+                                                            entry.photos.length;
+
+                                                        if (count === 1) {
+                                                            return 'grid grid-cols-1 gap-1';
+                                                        }
+
+                                                        if (count === 2) {
+                                                            return 'grid grid-cols-2 gap-1';
+                                                        }
+
+                                                        if (count === 3) {
+                                                            return 'grid grid-cols-3 gap-1';
+                                                        }
+
+                                                        return 'grid grid-cols-2 gap-1';
+                                                    })()}
+                                                >
+                                                    {entry.photos
+                                                        .slice(0, 4)
+                                                        .map(
+                                                            (photo, index) => {
+                                                                const count =
+                                                                    entry.photos
+                                                                        .length;
+                                                                const isSingle =
+                                                                    count ===
+                                                                    1;
+                                                                const isFourth =
+                                                                    index ===
+                                                                        3 &&
+                                                                    count > 4;
+
+                                                                const className =
+                                                                    isSingle
+                                                                        ? 'aspect-video'
+                                                                        : 'aspect-square';
+
+                                                                return (
+                                                                    <div
+                                                                        key={
+                                                                            photo.id
+                                                                        }
+                                                                        className={cn(
+                                                                            'relative overflow-hidden rounded-lg cursor-pointer active:opacity-75 transition-opacity',
+                                                                            className,
+                                                                        )}
+                                                                        onClick={() =>
+                                                                            openLightbox(
+                                                                                entry.photos,
+                                                                                index,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <img
+                                                                            src={
+                                                                                photo.url
+                                                                            }
+                                                                            alt={
+                                                                                photo.original_name ??
+                                                                                'Фото'
+                                                                            }
+                                                                            className="h-full w-full object-cover"
+                                                                            loading="lazy"
+                                                                        />
+                                                                        {isFourth ? (
+                                                                            <div className="absolute inset-0 grid place-items-center bg-black/55 text-lg font-semibold text-white">
+                                                                                +
+                                                                                {count -
+                                                                                    4}
+                                                                            </div>
+                                                                        ) : null}
+                                                                    </div>
+                                                                );
+                                                            },
+                                                        )}
                                                 </div>
                                             </CardContent>
                                         ) : null}
@@ -845,6 +945,7 @@ export default function GarageShow({
                                 Архив.
                             </AlertDialogDescription>
                         </AlertDialogHeader>
+                        <AlertDialogBody />
                         <AlertDialogFooter>
                             <AlertDialogCancel>Отмена</AlertDialogCancel>
                             <AlertDialogAction
@@ -879,6 +980,19 @@ export default function GarageShow({
                     onOpenChange={setModalOpen}
                 />
             ) : null}
+
+            <Lightbox
+                open={lightbox.open}
+                close={() => setLightbox((s) => ({ ...s, open: false }))}
+                index={lightbox.index}
+                slides={lightbox.slides}
+                plugins={[Zoom, Thumbnails]}
+                zoom={{ maxZoomPixelRatio: 3 }}
+                thumbnails={{ position: 'bottom', width: 56, height: 56 }}
+                styles={{
+                    container: { backgroundColor: 'rgba(0,0,0,0.95)' },
+                }}
+            />
         </>
     );
 }
