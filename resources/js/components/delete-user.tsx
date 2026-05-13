@@ -9,8 +9,10 @@ import {
     Dialog,
     DialogClose,
     DialogContent,
+    DialogBody,
     DialogDescription,
     DialogFooter,
+    DialogHeader,
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
@@ -45,15 +47,6 @@ export default function DeleteUser() {
                         </Button>
                     </DialogTrigger>
                     <DialogContent>
-                        <DialogTitle>
-                            Удалить аккаунт без возможности восстановления?
-                        </DialogTitle>
-                        <DialogDescription>
-                            После удаления аккаунта все ресурсы и данные будут
-                            безвозвратно удалены. Введите пароль, чтобы
-                            подтвердить удаление.
-                        </DialogDescription>
-
                         <Form
                             {...ProfileController.destroy.form()}
                             options={{
@@ -61,28 +54,46 @@ export default function DeleteUser() {
                             }}
                             onError={() => passwordInput.current?.focus()}
                             resetOnSuccess
-                            className="space-y-6"
+                            id="delete-user-form"
+                            className="flex min-h-0 flex-1 flex-col"
                         >
                             {({ resetAndClearErrors, processing, errors }) => (
                                 <>
-                                    <div className="grid gap-2">
-                                        <Label
-                                            htmlFor="password"
-                                            className="sr-only"
-                                        >
-                                            Пароль
-                                        </Label>
+                                    <DialogHeader>
+                                        <DialogTitle>
+                                            Удалить аккаунт без возможности
+                                            восстановления?
+                                        </DialogTitle>
+                                        <DialogDescription>
+                                            После удаления аккаунта все ресурсы и
+                                            данные будут безвозвратно удалены.
+                                            Введите пароль, чтобы подтвердить
+                                            удаление.
+                                        </DialogDescription>
+                                    </DialogHeader>
 
-                                        <PasswordInput
-                                            id="password"
-                                            name="password"
-                                            ref={passwordInput}
-                                            placeholder="Пароль"
-                                            autoComplete="current-password"
-                                        />
+                                    <DialogBody className="py-1">
+                                        <div className="grid gap-2">
+                                            <Label
+                                                htmlFor="password"
+                                                className="sr-only"
+                                            >
+                                                Пароль
+                                            </Label>
 
-                                        <InputError message={errors.password} />
-                                    </div>
+                                            <PasswordInput
+                                                id="password"
+                                                name="password"
+                                                ref={passwordInput}
+                                                placeholder="Пароль"
+                                                autoComplete="current-password"
+                                            />
+
+                                            <InputError
+                                                message={errors.password}
+                                            />
+                                        </div>
+                                    </DialogBody>
 
                                     <DialogFooter className="gap-2">
                                         <DialogClose asChild>
@@ -103,6 +114,7 @@ export default function DeleteUser() {
                                         >
                                             <button
                                                 type="submit"
+                                                form="delete-user-form"
                                                 data-test="confirm-delete-user-button"
                                             >
                                                 Удалить навсегда

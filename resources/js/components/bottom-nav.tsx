@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import { Car, User } from 'lucide-react';
+import { UserAvatar } from '@/components/user-avatar';
 import { cn } from '@/lib/utils';
 import { index as garageIndex } from '@/routes/garage';
 import { edit as profileEdit } from '@/routes/profile';
@@ -28,7 +29,8 @@ const items: NavEntry[] = [
 ];
 
 export function BottomNav() {
-    const { url } = usePage();
+    const { url, props } = usePage<{ auth: { user: { name: string; avatar?: string | null } } }>();
+    const authUser = props.auth?.user;
     const pathname = new URL(
         url,
         typeof window !== 'undefined'
@@ -44,6 +46,7 @@ export function BottomNav() {
             <div className="mx-auto flex max-w-lg items-stretch justify-around gap-1 px-2 pt-1">
                 {items.map(({ label, href, icon: Icon, match }) => {
                     const active = match(pathname);
+                    const showAvatar = label === 'Профиль' && authUser;
 
                     return (
                         <Link
@@ -57,15 +60,28 @@ export function BottomNav() {
                                     : 'text-muted-foreground hover:text-foreground',
                             )}
                         >
-                            <Icon
-                                className={cn(
-                                    'size-6 shrink-0',
-                                    active
-                                        ? 'text-primary'
-                                        : 'text-muted-foreground',
-                                )}
-                                strokeWidth={active ? 2.25 : 2}
-                            />
+                            {showAvatar ? (
+                                <UserAvatar
+                                    user={authUser}
+                                    size="sm"
+                                    className={cn(
+                                        'border-0',
+                                        active
+                                            ? 'ring-2 ring-primary ring-offset-1 ring-offset-card'
+                                            : 'opacity-90',
+                                    )}
+                                />
+                            ) : (
+                                <Icon
+                                    className={cn(
+                                        'size-6 shrink-0',
+                                        active
+                                            ? 'text-primary'
+                                            : 'text-muted-foreground',
+                                    )}
+                                    strokeWidth={active ? 2.25 : 2}
+                                />
+                            )}
                             <span className="truncate">{label}</span>
                         </Link>
                     );

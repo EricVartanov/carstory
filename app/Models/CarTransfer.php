@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CarTransferStatus;
 use Database\Factories\CarTransferFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -51,6 +52,7 @@ class CarTransfer extends Model
     protected function casts(): array
     {
         return [
+            'status' => CarTransferStatus::class,
             'expires_at' => 'datetime',
         ];
     }

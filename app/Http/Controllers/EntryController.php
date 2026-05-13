@@ -2,30 +2,45 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Currency;
+use App\Enums\EntryType;
 use App\Models\Car;
 use App\Models\Entry;
 use App\Models\EntryPhoto;
+use App\Services\Images\ImageUploadNormalizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class EntryController extends Controller
 {
+    public function __construct(
+        private readonly ImageUploadNormalizer $imageUploadNormalizer,
+    ) {
+    }
+
     public function store(Request $request, Car $car): RedirectResponse
     {
-        abort_unless(auth()->id() === $car->user_id, 403);
+        abort_unless(Auth::id() === $car->user_id, 403);
 
         $validated = $request->validate([
             'date' => ['required', 'date'],
             'mileage' => ['nullable', 'integer', 'min:0'],
-            'type' => ['required', Rule::in(['note', 'service', 'trip', 'fuel'])],
+            'type' => ['required', Rule::enum(EntryType::class)],
             'title' => ['nullable', 'string', 'max:255'],
             'body' => ['nullable', 'string'],
             'amount' => ['nullable', 'numeric', 'min:0'],
-            'currency' => ['nullable', Rule::in(['RUB', 'AMD', 'KZT', 'UAH', 'BYN', 'USD'])],
-            'photos.*' => ['nullable', 'image', 'max:10240'],
+            'currency' => ['nullable', Rule::enum(Currency::class)],
+            'photos.*' => [
+                'nullable',
+                'file',
+                'max:10240',
+                'mimetypes:image/jpeg,image/png,image/webp,image/gif,image/bmp,image/heic,image/heif,image/heic-sequence,image/heif-sequence',
+            ],
         ]);
 
         $entry = Entry::create([
@@ -44,12 +59,22 @@ class EntryController extends Controller
         $photos = $request->file('photos', []);
 
         foreach (array_values($photos) as $index => $photo) {
+            $originalName = $photo->getClientOriginalName();
+
+            try {
+                $photo = $this->imageUploadNormalizer->normalize($photo);
+            } catch (\Throwable $e) {
+                throw ValidationException::withMessages([
+                    "photos.$index" => 'Не удалось обработать одно из изображений. Попробуйте выбрать другое фото.',
+                ]);
+            }
+
             $path = $photo->store("entries/{$entry->id}", 'public');
 
             EntryPhoto::create([
                 'entry_id' => $entry->id,
                 'path' => $path,
-                'original_name' => $photo->getClientOriginalName(),
+                'original_name' => $originalName,
                 'order' => $index,
             ]);
         }
@@ -59,20 +84,20 @@ class EntryController extends Controller
 
     public function update(Request $request, Car $car, Entry $entry): RedirectResponse
     {
-        abort_unless(auth()->id() === $car->user_id, 403);
+        abort_unless(Auth::id() === $car->user_id, 403);
 
         abort_unless($entry->car_id === $car->id, 404);
 
-        abort_unless($entry->user_id === auth()->id(), 403, 'Нельзя изменять записи предыдущего владельца');
+        abort_unless($entry->user_id === Auth::id(), 403, 'Нельзя изменять записи предыдущего владельца');
 
         $validated = $request->validate([
             'date' => ['required', 'date'],
             'mileage' => ['nullable', 'integer', 'min:0'],
-            'type' => ['required', Rule::in(['note', 'service', 'trip', 'fuel'])],
+            'type' => ['required', Rule::enum(EntryType::class)],
             'title' => ['nullable', 'string', 'max:255'],
             'body' => ['nullable', 'string'],
             'amount' => ['nullable', 'numeric', 'min:0'],
-            'currency' => ['nullable', Rule::in(['RUB', 'AMD', 'KZT', 'UAH', 'BYN', 'USD'])],
+            'currency' => ['nullable', Rule::enum(Currency::class)],
             'photos.*' => ['nullable', 'image', 'max:10240'],
         ]);
 
@@ -91,11 +116,11 @@ class EntryController extends Controller
 
     public function destroy(Car $car, Entry $entry): RedirectResponse
     {
-        abort_unless(auth()->id() === $car->user_id, 403);
+        abort_unless(Auth::id() === $car->user_id, 403);
 
         abort_unless($entry->car_id === $car->id, 404);
 
-        abort_unless($entry->user_id === auth()->id(), 403, 'Нельзя изменять записи предыдущего владельца');
+        abort_unless($entry->user_id === Auth::id(), 403, 'Нельзя изменять записи предыдущего владельца');
 
         $photos = $entry->photos()->get(['id', 'path']);
 

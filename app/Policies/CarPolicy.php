@@ -58,7 +58,7 @@ class CarPolicy
      */
     public function restore(User $user, Car $car): bool
     {
-        return false;
+        return $car->user_id === $user->id;
     }
 
     /**
@@ -66,6 +66,6 @@ class CarPolicy
      */
     public function forceDelete(User $user, Car $car): bool
     {
-        return false;
+        return $car->user_id === $user->id;
     }
 }

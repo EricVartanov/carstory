@@ -1,15 +1,30 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
+    Camera,
     Car as CarIcon,
-    Fuel,
-    NotebookPen,
     Pencil,
     Trash2,
-    Wrench,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { CardMotion } from '@/components/card-motion';
+import Lightbox from 'yet-another-react-lightbox';
+import 'yet-another-react-lightbox/styles.css';
+import Thumbnails from 'yet-another-react-lightbox/plugins/thumbnails';
+import 'yet-another-react-lightbox/plugins/thumbnails.css';
+import Zoom from 'yet-another-react-lightbox/plugins/zoom';
+import { ImageCropModal } from '@/components/image-crop-modal';
 import InputError from '@/components/input-error';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogBody,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,6 +36,7 @@ import {
 } from '@/components/ui/card';
 import {
     Dialog,
+    DialogBody,
     DialogContent,
     DialogDescription,
     DialogFooter,
@@ -37,14 +53,23 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useImageCrop } from '@/hooks/use-image-crop';
+import { DynamicIcon } from '@/lib/icons';
 import { formatDateRu, formatMileageRu, formatMoneyRu } from '@/lib/ru';
-import { toUrl } from '@/lib/utils';
+import { storageUrl } from '@/lib/storage';
+import { cn, toUrl } from '@/lib/utils';
 import { destroy as entryDestroy, store as entryStore } from '@/routes/entries';
-import { index as garageIndex, show as garageShow } from '@/routes/garage';
+import {
+    archive as garageArchive,
+    edit as garageEdit,
+    index as garageIndex,
+    updateCover as garageUpdateCover,
+} from '@/routes/garage';
 import {
     create as transferCreate,
     cancel as transferCancel,
 } from '@/routes/transfer';
+import type { CurrencyOption, EntryTypeOption, SharedEnums } from '@/types/enums';
 
 type Car = {
     id: number;
@@ -55,6 +80,8 @@ type Car = {
     plate: string | null;
     color: string | null;
     cover_photo: string | null;
+    is_archived: boolean;
+    generation?: { id: number; name: string; period: string } | null;
 };
 
 type EntryPhoto = {
@@ -69,11 +96,11 @@ type Entry = {
     user_id: number;
     date: string;
     mileage: number | null;
-    type: 'note' | 'service' | 'trip' | 'fuel';
+    type: string;
     title: string | null;
     body: string | null;
     amount: string | number | null;
-    currency: 'RUB' | 'AMD' | 'KZT' | 'UAH' | 'BYN' | 'USD' | null;
+    currency: string | null;
     photos: EntryPhoto[];
 };
 
@@ -86,7 +113,7 @@ type Ownership = {
 
 type PendingTransfer = {
     id: number;
-    status: 'pending' | 'accepted' | 'cancelled';
+    status: string;
 } | null;
 
 type Props = {
@@ -98,35 +125,6 @@ type Props = {
     pendingTransfer: PendingTransfer;
 };
 
-function EntryTypeIcon({ type }: { type: Entry['type'] }) {
-    switch (type) {
-        case 'note':
-            return <NotebookPen className="size-4" />;
-        case 'service':
-            return <Wrench className="size-4" />;
-        case 'trip':
-            return <CarIcon className="size-4" />;
-        case 'fuel':
-            return <Fuel className="size-4" />;
-    }
-}
-
-function entryTypeBadgeMeta(type: Entry['type']): {
-    label: string;
-    variant: 'default' | 'secondary' | 'outline';
-} {
-    switch (type) {
-        case 'note':
-            return { label: 'Заметка', variant: 'secondary' };
-        case 'service':
-            return { label: 'Обслуживание', variant: 'default' };
-        case 'trip':
-            return { label: 'Поездка', variant: 'outline' };
-        case 'fuel':
-            return { label: 'Заправка', variant: 'secondary' };
-    }
-}
-
 function EntryModal({
     carId,
     open,
@@ -137,24 +135,27 @@ function EntryModal({
     onOpenChange: (v: boolean) => void;
 }) {
     const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+    const { enums } = usePage<PageProps>().props;
+    const defaultType = enums.entryTypes[0]?.id ?? 'note';
+    const defaultCurrency = enums.currencies[0]?.id ?? 'RUB';
 
     const { data, setData, processing, errors, reset, post } = useForm<{
-        type: Entry['type'];
+        type: string;
         date: string;
         mileage: string;
         title: string;
         body: string;
         amount: string;
-        currency: NonNullable<Entry['currency']>;
+        currency: string;
         photos: File[];
     }>({
-        type: 'note',
+        type: defaultType,
         date: today,
         mileage: '',
         title: '',
         body: '',
         amount: '',
-        currency: 'RUB',
+        currency: defaultCurrency,
         photos: [],
     });
 
@@ -173,163 +174,182 @@ function EntryModal({
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="p-0">
-                <form onSubmit={submit} className="grid gap-4 p-6">
-                    <DialogHeader>
-                        <DialogTitle>Добавить запись</DialogTitle>
-                        <DialogDescription>
-                            Заполните детали и сохраните в историю автомобиля.
-                        </DialogDescription>
-                    </DialogHeader>
+                <DialogHeader className="shrink-0 border-b px-6 py-4">
+                    <DialogTitle>Добавить запись</DialogTitle>
+                    <DialogDescription>
+                        Заполните детали и сохраните в историю автомобиля.
+                    </DialogDescription>
+                </DialogHeader>
 
-                    <div className="grid gap-2">
-                        <Label>Тип</Label>
-                        <Select
-                            value={data.type}
-                            onValueChange={(v) =>
-                                setData('type', v as Entry['type'])
-                            }
-                        >
-                            <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Выберите тип" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="note">📝 Заметка</SelectItem>
-                                <SelectItem value="service">
-                                    🔧 Обслуживание
-                                </SelectItem>
-                                <SelectItem value="trip">🚗 Поездка</SelectItem>
-                                <SelectItem value="fuel">
-                                    ⛽ Заправка
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <InputError message={errors.type} />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="date">Дата</Label>
-                        <Input
-                            id="date"
-                            type="date"
-                            value={data.date}
-                            onChange={(e) => setData('date', e.target.value)}
-                            required
-                        />
-                        <InputError message={errors.date} />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="mileage">Пробег</Label>
-                        <Input
-                            id="mileage"
-                            inputMode="numeric"
-                            type="number"
-                            min={0}
-                            placeholder="25000"
-                            value={data.mileage}
-                            onChange={(e) => setData('mileage', e.target.value)}
-                        />
-                        <InputError message={errors.mileage} />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="title">Заголовок</Label>
-                        <Input
-                            id="title"
-                            placeholder="Например: замена масла"
-                            value={data.title}
-                            onChange={(e) => setData('title', e.target.value)}
-                        />
-                        <InputError message={errors.title} />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="body">Заметка</Label>
-                        <Textarea
-                            id="body"
-                            className="min-h-24"
-                            value={data.body}
-                            onChange={(e) => setData('body', e.target.value)}
-                        />
-                        <InputError message={errors.body} />
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <DialogBody className="px-6 py-4">
+                    <form
+                        id="garage-entry-form"
+                        onSubmit={submit}
+                        className="grid gap-4"
+                    >
                         <div className="grid gap-2">
-                            <Label htmlFor="amount">Сумма</Label>
-                            <Input
-                                id="amount"
-                                inputMode="decimal"
-                                type="number"
-                                min={0}
-                                step="0.01"
-                                value={data.amount}
-                                onChange={(e) =>
-                                    setData('amount', e.target.value)
-                                }
-                            />
-                            <InputError message={errors.amount} />
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label>Валюта</Label>
+                            <Label>Тип</Label>
                             <Select
-                                value={data.currency}
-                                onValueChange={(v) =>
-                                    setData(
-                                        'currency',
-                                        v as Props['entries'][number]['currency'] &
-                                            string,
-                                    )
-                                }
+                                value={data.type}
+                                onValueChange={(v) => setData('type', v)}
                             >
                                 <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Валюта" />
+                                    <SelectValue placeholder="Выберите тип" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="RUB">RUB</SelectItem>
-                                    <SelectItem value="AMD">AMD</SelectItem>
-                                    <SelectItem value="KZT">KZT</SelectItem>
-                                    <SelectItem value="UAH">UAH</SelectItem>
-                                    <SelectItem value="BYN">BYN</SelectItem>
-                                    <SelectItem value="USD">USD</SelectItem>
+                                    {enums.entryTypes.map(
+                                        (type: EntryTypeOption) => (
+                                            <SelectItem
+                                                key={type.id}
+                                                value={type.id}
+                                            >
+                                                {type.label}
+                                            </SelectItem>
+                                        ),
+                                    )}
                                 </SelectContent>
                             </Select>
-                            <InputError message={errors.currency} />
+                            <InputError message={errors.type} />
                         </div>
-                    </div>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="photos">Фото</Label>
-                        <Input
-                            id="photos"
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={(e) =>
-                                setData(
-                                    'photos',
-                                    Array.from(e.target.files ?? []),
-                                )
-                            }
-                        />
-                        <InputError message={errors.photos} />
-                    </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="date">Дата</Label>
+                            <Input
+                                id="date"
+                                type="date"
+                                value={data.date}
+                                onChange={(e) =>
+                                    setData('date', e.target.value)
+                                }
+                                required
+                            />
+                            <InputError message={errors.date} />
+                        </div>
 
-                    <DialogFooter>
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => onOpenChange(false)}
-                            disabled={processing}
-                        >
-                            Отмена
-                        </Button>
-                        <Button type="submit" disabled={processing}>
-                            Сохранить
-                        </Button>
-                    </DialogFooter>
-                </form>
+                        <div className="grid gap-2">
+                            <Label htmlFor="mileage">Пробег</Label>
+                            <Input
+                                id="mileage"
+                                inputMode="numeric"
+                                type="number"
+                                min={0}
+                                placeholder="25000"
+                                value={data.mileage}
+                                onChange={(e) =>
+                                    setData('mileage', e.target.value)
+                                }
+                            />
+                            <InputError message={errors.mileage} />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="title">Заголовок</Label>
+                            <Input
+                                id="title"
+                                placeholder="Например: замена масла"
+                                value={data.title}
+                                onChange={(e) =>
+                                    setData('title', e.target.value)
+                                }
+                            />
+                            <InputError message={errors.title} />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="body">Заметка</Label>
+                            <Textarea
+                                id="body"
+                                className="min-h-24"
+                                value={data.body}
+                                onChange={(e) =>
+                                    setData('body', e.target.value)
+                                }
+                            />
+                            <InputError message={errors.body} />
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="grid gap-2">
+                                <Label htmlFor="amount">Сумма</Label>
+                                <Input
+                                    id="amount"
+                                    inputMode="decimal"
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    value={data.amount}
+                                    onChange={(e) =>
+                                        setData('amount', e.target.value)
+                                    }
+                                />
+                                <InputError message={errors.amount} />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label>Валюта</Label>
+                                <Select
+                                    value={data.currency}
+                                    onValueChange={(v) =>
+                                        setData('currency', v)
+                                    }
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Валюта" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {enums.currencies.map(
+                                            (currency: CurrencyOption) => (
+                                                <SelectItem
+                                                    key={currency.id}
+                                                    value={currency.id}
+                                                >
+                                                    {currency.symbol}{' '}
+                                                    {currency.id}
+                                                </SelectItem>
+                                            ),
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                                <InputError message={errors.currency} />
+                            </div>
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="photos">Фото</Label>
+                            <Input
+                                id="photos"
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={(e) =>
+                                    setData(
+                                        'photos',
+                                        Array.from(e.target.files ?? []),
+                                    )
+                                }
+                            />
+                            <InputError message={errors.photos} />
+                        </div>
+                    </form>
+                </DialogBody>
+
+                <DialogFooter className="shrink-0 border-t px-6 py-4">
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => onOpenChange(false)}
+                        disabled={processing}
+                    >
+                        Отмена
+                    </Button>
+                    <Button
+                        type="submit"
+                        form="garage-entry-form"
+                        disabled={processing}
+                    >
+                        Сохранить
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );
@@ -337,6 +357,7 @@ function EntryModal({
 
 type PageProps = Props & {
     auth: { user: { id: number; email: string; name?: string } | null };
+    enums: SharedEnums;
 };
 
 export default function GarageShow({
@@ -347,38 +368,213 @@ export default function GarageShow({
     pendingTransfer,
 }: Props) {
     const [modalOpen, setModalOpen] = useState(false);
-    const authUser = usePage<PageProps>().props.auth.user;
+    const [archiveOpen, setArchiveOpen] = useState(false);
+    const [activeFilter, setActiveFilter] = useState<string>('all');
+    const [coverUploading, setCoverUploading] = useState(false);
+    const {
+        fileInputRef: coverFileInputRef,
+        modalOpen: coverModalOpen,
+        uploading: coverCropUploading,
+        tempResult: coverTempResult,
+        openFilePicker: openCoverFilePicker,
+        handleFileChange: handleCoverFileChange,
+        handleClose: handleCoverClose,
+        setTempResult: setCoverTempResult,
+        setModalOpen: setCoverModalOpen,
+    } = useImageCrop();
+    const page = usePage<PageProps>();
+    const authUser = page.props.auth.user;
+    const { enums } = page.props;
+    const [lightbox, setLightbox] = useState<{
+        open: boolean;
+        slides: { src: string }[];
+        index: number;
+    }>({ open: false, slides: [], index: 0 });
+
+    const openLightbox = (photos: EntryPhoto[], index: number) => {
+        setLightbox({
+            open: true,
+            slides: photos.map((p) => ({ src: p.url })),
+            index,
+        });
+    };
+
+    const historyFilters = useMemo(() => {
+        return [
+            { id: 'all', label: 'Все', icon: null },
+            ...enums.entryTypes.map((t) => ({
+                id: t.id,
+                label: t.label,
+                icon: t.icon,
+            })),
+            { id: 'photos', label: 'Фото', icon: 'Camera' },
+        ] as const;
+    }, [enums.entryTypes]);
+
+    function getEntryTypeOption(typeId: string): EntryTypeOption | undefined {
+        return enums.entryTypes.find((t) => t.id === typeId);
+    }
+
+    function entryTypeBadgeMeta(typeId: string): {
+        label: string;
+        variant: 'default' | 'secondary' | 'outline';
+        icon: string;
+    } {
+        const option = getEntryTypeOption(typeId);
+        const label = option?.label ?? typeId;
+        const icon = option?.icon ?? 'FileText';
+
+        switch (typeId) {
+            case 'service':
+                return { label, variant: 'default', icon };
+            case 'trip':
+                return { label, variant: 'outline', icon };
+            case 'fuel':
+            case 'note':
+            default:
+                return { label, variant: 'secondary', icon };
+        }
+    }
+
+    const filteredEntries = useMemo(() => {
+        if (activeFilter === 'all') {
+            return entries;
+        }
+
+        if (activeFilter === 'photos') {
+            return entries.filter((e) => (e.photos?.length ?? 0) > 0);
+        }
+
+        return entries.filter((e) => e.type === activeFilter);
+    }, [entries, activeFilter]);
+
+    const coverSrc = storageUrl(car.cover_photo);
 
     return (
         <>
             <Head title={`${car.brand} ${car.model}`} />
 
-            <div className="flex flex-col gap-4 p-4">
+            <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4">
                 <Card className="gap-0 py-0">
-                    <CardHeader className="pb-0">
-                        <div className="flex gap-4">
-                            <div className="relative size-24 shrink-0 overflow-hidden rounded-md bg-muted sm:size-28">
-                                {car.cover_photo ? (
+                    <CardHeader className="p-5">
+                        <div className="flex flex-col gap-4 sm:flex-row">
+                            <div className="relative aspect-video flex-1 w-full shrink-0 overflow-hidden rounded-xl bg-muted sm:max-w-md">
+                                {coverSrc ? (
                                     <img
-                                        src={car.cover_photo}
+                                        src={coverSrc}
                                         alt={`${car.brand} ${car.model}`}
                                         className="h-full w-full object-cover"
                                     />
                                 ) : (
-                                    <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                                        <CarIcon className="size-8" />
+                                    <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-slate-800 to-slate-900">
+                                        <CarIcon className="size-12 text-slate-400" />
                                     </div>
                                 )}
+                                {isCurrentOwner ? (
+                                    <>
+                                        <input
+                                            ref={coverFileInputRef}
+                                            type="file"
+                                            name="cover_photo"
+                                            accept="image/*"
+                                            className="sr-only"
+                                            disabled={coverUploading}
+                                            onChange={handleCoverFileChange}
+                                        />
+                                        <button
+                                            type="button"
+                                            disabled={coverUploading}
+                                            onClick={openCoverFilePicker}
+                                            className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-lg bg-black/50 px-2 py-1 text-xs text-white transition-opacity hover:bg-black/60 disabled:opacity-50"
+                                        >
+                                            <Camera
+                                                className="size-3.5 shrink-0"
+                                                strokeWidth={2}
+                                            />
+                                            Изменить фото
+                                        </button>
+                                    </>
+                                ) : null}
                             </div>
+
+                            <ImageCropModal
+                                open={coverModalOpen}
+                                uploading={coverCropUploading}
+                                tempResult={coverTempResult}
+                                onClose={handleCoverClose}
+                                title="Фото автомобиля"
+                                aspect={16 / 9}
+                                onSave={async (blob, tempPath) => {
+                                    setCoverUploading(true);
+
+                                    const file = new File([blob], 'cover.jpg', {
+                                        type: 'image/jpeg',
+                                    });
+
+                                    router.post(
+                                        toUrl(garageUpdateCover.url(car.id)),
+                                        {
+                                            cover_photo: file,
+                                            temp_path: tempPath,
+                                        },
+                                        {
+                                            forceFormData: true,
+                                            preserveScroll: true,
+                                            onFinish: () => {
+                                                setCoverUploading(false);
+                                                setCoverTempResult(null);
+                                                setCoverModalOpen(false);
+                                            },
+                                        },
+                                    );
+                                }}
+                            />
 
                             <div className="flex min-w-0 flex-1 flex-col gap-1">
                                 <CardTitle className="text-lg leading-tight">
                                     {car.brand} {car.model} {car.year}
                                 </CardTitle>
-                                <p className="text-sm text-muted-foreground">
-                                    {[car.plate, car.color]
-                                        .filter(Boolean)
-                                        .join(' • ') || '—'}
+                                {car.generation?.name ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        {car.generation.name} ·{' '}
+                                        {car.generation.period}
+                                    </p>
+                                ) : null}
+                                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                                    {car.plate ? <span>{car.plate}</span> : null}
+                                    {car.plate && car.color ? (
+                                        <span aria-hidden>•</span>
+                                    ) : null}
+                                    {car.color ? (
+                                        <span className="inline-flex items-center gap-1.5">
+                                            {(() => {
+                                                const option = enums.carColors.find(
+                                                    (c) => c.id === car.color,
+                                                );
+
+                                                return (
+                                                    <>
+                                                        <span
+                                                            className="inline-block size-3 shrink-0 rounded-full border border-border/50"
+                                                            style={{
+                                                                background:
+                                                                    option?.hex ??
+                                                                    'transparent',
+                                                            }}
+                                                            aria-hidden
+                                                        />
+                                                        <span>
+                                                            {option?.name ??
+                                                                car.color}
+                                                        </span>
+                                                    </>
+                                                );
+                                            })()}
+                                        </span>
+                                    ) : null}
+                                    {!car.plate && !car.color ? (
+                                        <span>—</span>
+                                    ) : null}
                                 </p>
 
                                 <div className="mt-2 flex flex-wrap gap-2">
@@ -389,8 +585,8 @@ export default function GarageShow({
                                                 size="sm"
                                                 variant="secondary"
                                             >
-                                                <Link href={garageShow(car.id)}>
-                                                    Обновить
+                                                <Link href={garageEdit.url(car.id)}>
+                                                    Редактировать
                                                 </Link>
                                             </Button>
 
@@ -403,6 +599,19 @@ export default function GarageShow({
                                                     >
                                                         Передать машину
                                                     </Link>
+                                                </Button>
+                                            ) : null}
+
+                                            {!car.is_archived ? (
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() =>
+                                                        setArchiveOpen(true)
+                                                    }
+                                                >
+                                                    В архив
                                                 </Button>
                                             ) : null}
                                         </>
@@ -443,7 +652,7 @@ export default function GarageShow({
                     ) : null}
                 </Card>
 
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <h2 className="text-base font-semibold">История</h2>
                     {isCurrentOwner ? (
                         <Button size="sm" onClick={() => setModalOpen(true)}>
@@ -452,28 +661,81 @@ export default function GarageShow({
                     ) : null}
                 </div>
 
+                {entries.length > 0 ? (
+                    <div className="flex flex-col gap-2">
+                        <div
+                            className="flex gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                            role="tablist"
+                            aria-label="Фильтр записей"
+                        >
+                            {historyFilters.map((f) => {
+                                const active = activeFilter === f.id;
+
+                                return (
+                                    <button
+                                        key={f.id}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={active}
+                                        onClick={() => setActiveFilter(f.id)}
+                                        className={cn(
+                                            'inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-1.5 text-sm whitespace-nowrap transition-colors duration-150',
+                                            active
+                                                ? 'bg-primary text-primary-foreground'
+                                                : 'bg-secondary text-secondary-foreground',
+                                        )}
+                                    >
+                                        {f.icon ? (
+                                            <DynamicIcon
+                                                name={f.icon}
+                                                className="size-3.5 shrink-0"
+                                            />
+                                        ) : null}
+                                        {f.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        {activeFilter !== 'all' ? (
+                            <p className="text-sm text-muted-foreground">
+                                Показано {filteredEntries.length} из{' '}
+                                {entries.length} записей
+                            </p>
+                        ) : null}
+                    </div>
+                ) : null}
+
                 {entries.length === 0 ? (
                     <div className="rounded-md border p-4 text-sm text-muted-foreground">
                         История пока пуста. Добавьте первую запись.
                     </div>
                 ) : (
                     <div className="grid gap-3">
-                        {entries.map((entry, index) => {
-                            const typeMeta = entryTypeBadgeMeta(entry.type);
+                        <AnimatePresence mode="popLayout">
+                            {filteredEntries.map((entry, i) => {
+                                const typeMeta = entryTypeBadgeMeta(entry.type);
 
-                            return (
-                                <CardMotion
-                                    key={entry.id}
-                                    delay={index * 0.05}
-                                    className="block"
-                                >
+                                return (
+                                    <motion.div
+                                        key={entry.id}
+                                        layout
+                                        initial={{ opacity: 0, y: 8 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        transition={{
+                                            duration: 0.2,
+                                            delay: i * 0.03,
+                                        }}
+                                        className="block"
+                                    >
                                     <Card className="gap-0 py-4">
                                         <CardHeader className="gap-3 pb-2">
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="flex min-w-0 items-start gap-3">
                                                     <div className="mt-0.5 text-muted-foreground">
-                                                        <EntryTypeIcon
-                                                            type={entry.type}
+                                                        <DynamicIcon
+                                                            name={typeMeta.icon}
+                                                            className="size-4"
                                                         />
                                                     </div>
                                                     <div className="min-w-0 space-y-2">
@@ -553,48 +815,156 @@ export default function GarageShow({
                                         entry.amount !== '' ? (
                                             <CardContent className="pt-2 pb-0">
                                                 <div className="text-sm font-medium">
-                                                    {formatMoneyRu(
-                                                        entry.amount,
-                                                        entry.currency ?? 'RUB',
-                                                    )}
+                                                    {(() => {
+                                                        const formatted =
+                                                            formatMoneyRu(
+                                                                entry.amount,
+                                                            );
+                                                        const code =
+                                                            entry.currency ??
+                                                            null;
+                                                        const symbol = code
+                                                            ? enums.currencies.find(
+                                                                  (c) =>
+                                                                      c.id ===
+                                                                      code,
+                                                              )?.symbol
+                                                            : null;
+
+                                                        return symbol
+                                                            ? `${formatted} ${symbol}`
+                                                            : formatted;
+                                                    })()}
                                                 </div>
                                             </CardContent>
                                         ) : null}
 
                                         {entry.photos?.length ? (
                                             <CardContent className="pt-3 pb-0">
-                                                <div className="grid grid-cols-3 gap-2">
-                                                    {entry.photos.map(
-                                                        (photo) => (
-                                                            <a
-                                                                key={photo.id}
-                                                                href={photo.url}
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                                className="block"
-                                                            >
-                                                                <img
-                                                                    src={
-                                                                        photo.url
-                                                                    }
-                                                                    alt={
-                                                                        photo.original_name ??
-                                                                        'Фото'
-                                                                    }
-                                                                    className="aspect-square w-full rounded-md object-cover"
-                                                                />
-                                                            </a>
-                                                        ),
-                                                    )}
+                                                <div
+                                                    className={(() => {
+                                                        const count =
+                                                            entry.photos.length;
+
+                                                        if (count === 1) {
+                                                            return 'grid grid-cols-1 gap-1';
+                                                        }
+
+                                                        if (count === 2) {
+                                                            return 'grid grid-cols-2 gap-1';
+                                                        }
+
+                                                        if (count === 3) {
+                                                            return 'grid grid-cols-3 gap-1';
+                                                        }
+
+                                                        return 'grid grid-cols-2 gap-1';
+                                                    })()}
+                                                >
+                                                    {entry.photos
+                                                        .slice(0, 4)
+                                                        .map(
+                                                            (photo, index) => {
+                                                                const count =
+                                                                    entry.photos
+                                                                        .length;
+                                                                const isSingle =
+                                                                    count ===
+                                                                    1;
+                                                                const isFourth =
+                                                                    index ===
+                                                                        3 &&
+                                                                    count > 4;
+
+                                                                const className =
+                                                                    isSingle
+                                                                        ? 'aspect-video'
+                                                                        : 'aspect-square';
+
+                                                                return (
+                                                                    <div
+                                                                        key={
+                                                                            photo.id
+                                                                        }
+                                                                        className={cn(
+                                                                            'relative overflow-hidden rounded-lg cursor-pointer active:opacity-75 transition-opacity',
+                                                                            className,
+                                                                        )}
+                                                                        onClick={() =>
+                                                                            openLightbox(
+                                                                                entry.photos,
+                                                                                index,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <img
+                                                                            src={
+                                                                                photo.url
+                                                                            }
+                                                                            alt={
+                                                                                photo.original_name ??
+                                                                                'Фото'
+                                                                            }
+                                                                            className="h-full w-full object-cover"
+                                                                            loading="lazy"
+                                                                        />
+                                                                        {isFourth ? (
+                                                                            <div className="absolute inset-0 grid place-items-center bg-black/55 text-lg font-semibold text-white">
+                                                                                +
+                                                                                {count -
+                                                                                    4}
+                                                                            </div>
+                                                                        ) : null}
+                                                                    </div>
+                                                                );
+                                                            },
+                                                        )}
                                                 </div>
                                             </CardContent>
                                         ) : null}
                                     </Card>
-                                </CardMotion>
-                            );
-                        })}
+                                    </motion.div>
+                                );
+                            })}
+                        </AnimatePresence>
                     </div>
                 )}
+
+                <AlertDialog
+                    open={archiveOpen}
+                    onOpenChange={setArchiveOpen}
+                >
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>
+                                Переместить в архив?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Машина будет скрыта из гаража. Вы сможете
+                                восстановить её в любой момент из раздела
+                                Архив.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogBody />
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Отмена</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={() => {
+                                    router.post(
+                                        toUrl(garageArchive.url(car.id)),
+                                        {},
+                                        {
+                                            onFinish: () =>
+                                                setArchiveOpen(false),
+                                        },
+                                    );
+                                }}
+                            >
+                                В архив
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
 
                 <div className="pt-2">
                     <Button asChild variant="ghost" size="sm">
@@ -610,6 +980,19 @@ export default function GarageShow({
                     onOpenChange={setModalOpen}
                 />
             ) : null}
+
+            <Lightbox
+                open={lightbox.open}
+                close={() => setLightbox((s) => ({ ...s, open: false }))}
+                index={lightbox.index}
+                slides={lightbox.slides}
+                plugins={[Zoom, Thumbnails]}
+                zoom={{ maxZoomPixelRatio: 3 }}
+                thumbnails={{ position: 'bottom', width: 56, height: 56 }}
+                styles={{
+                    container: { backgroundColor: 'rgba(0,0,0,0.95)' },
+                }}
+            />
         </>
     );
 }

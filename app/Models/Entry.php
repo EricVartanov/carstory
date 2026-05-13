@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\Currency;
+use App\Enums\EntryType;
 use Database\Factories\EntryFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -59,7 +61,9 @@ class Entry extends Model
     {
         return [
             'date' => 'date',
+            'type' => EntryType::class,
             'amount' => 'decimal:2',
+            'currency' => Currency::class,
             'location' => 'array',
         ];
     }

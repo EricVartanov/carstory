@@ -4,6 +4,9 @@ use App\Models\Car;
 use App\Models\CarOwnership;
 use App\Models\Entry;
 use App\Models\User;
+use App\Services\Images\ImageTranscoder;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 test('profile page is displayed', function () {
     $user = User::factory()->create();
@@ -69,6 +72,69 @@ test('profile information can be updated', function () {
     expect($user->name)->toBe('Test User');
     expect($user->email)->toBe('test@example.com');
     expect($user->email_verified_at)->toBeNull();
+});
+
+test('profile avatar can be uploaded and stored on public disk', function () {
+    Storage::fake('public');
+
+    $user = User::factory()->create();
+
+    $file = UploadedFile::fake()->image('avatar.jpg', 100, 100);
+
+    $this
+        ->actingAs($user)
+        ->from(route('profile.edit'))
+        ->post(route('profile.avatar'), [
+            'avatar' => $file,
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('profile.edit'));
+
+    $user->refresh();
+
+    expect($user->avatar)->not->toBeNull()
+        ->and(Storage::disk('public')->exists($user->avatar))->toBeTrue();
+});
+
+test('profile avatar endpoint rejects HEIC (use temp upload instead)', function () {
+    Storage::fake('public');
+
+    $user = User::factory()->create();
+    $file = UploadedFile::fake()->create('avatar.heic', 200, 'image/heic');
+
+    $this
+        ->actingAs($user)
+        ->from(route('profile.edit'))
+        ->post(route('profile.avatar'), [
+            'avatar' => $file,
+        ])
+        ->assertSessionHasErrors('avatar')
+        ->assertRedirect(route('profile.edit'));
+});
+
+test('profile avatar accepts HEIC and stores transcoded jpeg', function () {
+    Storage::fake('public');
+
+    $user = User::factory()->create();
+    $file = UploadedFile::fake()->create('avatar.heic', 200, 'image/heic');
+
+    app()->bind(ImageTranscoder::class, fn () => new class implements ImageTranscoder
+    {
+        public function toJpeg(UploadedFile $file, int $quality = 85): UploadedFile
+        {
+            return UploadedFile::fake()->image('converted.jpg', 100, 100);
+        }
+    });
+
+    $this
+        ->actingAs($user)
+        ->post(route('upload.temp'), [
+            'file' => $file,
+        ], [
+            'Accept' => 'application/json',
+        ])
+        ->assertOk()
+        ->assertJsonStructure(['temp_path', 'url']);
 });
 
 test('email verification status is unchanged when the email address is unchanged', function () {

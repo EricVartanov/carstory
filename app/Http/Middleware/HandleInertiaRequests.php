@@ -2,6 +2,10 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\CarColor;
+use App\Enums\CarTransferStatus;
+use App\Enums\Currency;
+use App\Enums\EntryType;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -40,6 +44,16 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name'),
             'auth' => [
                 'user' => $request->user(),
+            ],
+            'enums' => [
+                'carColors' => CarColor::forFrontend(),
+                'entryTypes' => EntryType::forFrontend(),
+                'currencies' => Currency::forFrontend(),
+                'transferStatuses' => CarTransferStatus::forFrontend(),
+            ],
+            'flash' => [
+                'success' => session('success'),
+                'error' => session('error'),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

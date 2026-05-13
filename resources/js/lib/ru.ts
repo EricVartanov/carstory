@@ -1,6 +1,3 @@
-export const CURRENCIES = ['RUB', 'AMD', 'KZT', 'UAH', 'BYN', 'USD'] as const;
-export type CurrencyCode = (typeof CURRENCIES)[number];
-
 /**
  * Формат DD.MM.YYYY (для ISO-строк и Date).
  */
@@ -10,6 +7,7 @@ export function formatDateRu(value: string | Date | null | undefined): string {
     }
 
     const date = value instanceof Date ? value : new Date(value);
+
     if (Number.isNaN(date.getTime())) {
         return '';
     }
@@ -32,6 +30,7 @@ export function formatMileageRu(value: number | null | undefined): string {
     }
 
     const asNumber = Number(value);
+
     if (!Number.isFinite(asNumber)) {
         return '';
     }
@@ -43,27 +42,18 @@ export function formatMileageRu(value: number | null | undefined): string {
     return `${formatted} ${DISTANCE_UNIT}`;
 }
 
-const CURRENCY_SYMBOLS: Record<CurrencyCode, string> = {
-    RUB: '₽',
-    AMD: '֏',
-    KZT: '₸',
-    UAH: '₴',
-    BYN: 'Br',
-    USD: '$',
-};
-
 /**
- * Формат денег: 3000 -> "3 000 ₽".
+ * Формат денег: 3000 -> "3 000".
  */
 export function formatMoneyRu(
     amount: string | number | null | undefined,
-    currency: CurrencyCode,
 ): string {
     if (amount === null || amount === undefined || amount === '') {
         return '';
     }
 
     const asNumber = typeof amount === 'string' ? Number(amount) : amount;
+
     if (!Number.isFinite(asNumber)) {
         return '';
     }
@@ -73,5 +63,5 @@ export function formatMoneyRu(
         maximumFractionDigits: 2,
     }).format(asNumber);
 
-    return `${formatted} ${CURRENCY_SYMBOLS[currency]}`;
+    return formatted;
 }

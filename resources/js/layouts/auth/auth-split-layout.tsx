@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import AppLogoIcon from '@/components/app-logo-icon';
+import { CarStoryLockup, CarStoryMark } from '@/components/carstory-brand';
 import { welcome } from '@/routes';
 import type { AuthLayoutProps } from '@/types';
 
@@ -8,7 +8,7 @@ export default function AuthSplitLayout({
     title,
     description,
 }: AuthLayoutProps) {
-    const { name } = usePage().props;
+    const { name } = usePage<{ name: string }>().props;
 
     return (
         <div className="relative grid h-dvh flex-col items-center justify-center px-8 sm:px-0 lg:max-w-none lg:grid-cols-2 lg:px-0">
@@ -18,7 +18,13 @@ export default function AuthSplitLayout({
                     href={welcome().url}
                     className="relative z-20 flex items-center text-lg font-medium"
                 >
-                    <AppLogoIcon className="mr-2 size-8 fill-current text-white" />
+                    <span className="mr-2 inline-flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-zinc-950">
+                        <CarStoryMark
+                            alt=""
+                            aria-hidden
+                            className="max-h-7 max-w-7 object-contain"
+                        />
+                    </span>
                     {name}
                 </Link>
             </div>
@@ -28,7 +34,13 @@ export default function AuthSplitLayout({
                         href={welcome().url}
                         className="relative z-20 flex items-center justify-center lg:hidden"
                     >
-                        <AppLogoIcon className="h-10 fill-current text-black sm:h-12" />
+                        <div className="rounded-md bg-zinc-950 px-4 py-3">
+                            <CarStoryLockup
+                                layout="stacked"
+                                wordmarkTone="onDark"
+                                imageClassName="max-h-11"
+                            />
+                        </div>
                     </Link>
                     <div className="flex flex-col items-start gap-2 text-left sm:items-center sm:text-center">
                         <h1 className="text-xl font-medium">{title}</h1>

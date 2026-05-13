@@ -6,6 +6,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 test('guests see the welcome landing page with stats', function () {
     $this->get(route('welcome'))
         ->assertOk()
+        ->assertSee('/images/carstory-mark.png', false)
         ->assertInertia(fn (Assert $page) => $page
             ->component('welcome')
             ->has('stats', fn (Assert $stats) => $stats

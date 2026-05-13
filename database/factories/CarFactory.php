@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\CarColor;
 use App\Models\Car;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -31,8 +32,10 @@ class CarFactory extends Factory
             'year' => $this->faker->numberBetween(1990, (int) date('Y')),
             'vin' => null,
             'plate' => $this->faker->optional()->bothify('A###AA##'),
-            'color' => $this->faker->optional()->safeColorName(),
+            'color' => $this->faker->optional(0.5)->randomElement(CarColor::values()),
             'cover_photo' => null,
+            'is_archived' => false,
+            'archived_at' => null,
         ];
     }
 }
