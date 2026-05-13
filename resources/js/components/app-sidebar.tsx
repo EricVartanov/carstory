@@ -22,11 +22,11 @@ import { edit as profileEdit } from '@/routes/profile';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
-    {
-        title: 'Панель',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
+    // {
+    //     title: 'Панель',
+    //     href: dashboard(),
+    //     icon: LayoutGrid,
+    // },
     {
         title: 'Гараж',
         href: index(),
@@ -61,7 +61,7 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href={dashboard()} prefetch>
+                            <Link href={index()} prefetch>
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>
@@ -75,7 +75,10 @@ export function AppSidebar() {
                     <SidebarGroupContent>
                         <SidebarMenu>
                             <SidebarMenuItem>
-                                <SidebarMenuButton asChild tooltip={{ children: 'Выход' }}>
+                                <SidebarMenuButton
+                                    asChild
+                                    tooltip={{ children: 'Выход' }}
+                                >
                                     <Link
                                         href={logout()}
                                         method="post"

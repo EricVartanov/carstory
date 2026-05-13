@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import AppLogoIcon from '@/components/app-logo-icon';
+import { CarStoryLockup } from '@/components/carstory-brand';
 import { welcome } from '@/routes';
 import type { AuthLayoutProps } from '@/types';
 
@@ -17,8 +17,12 @@ export default function AuthSimpleLayout({
                             href={welcome().url}
                             className="flex flex-col items-center gap-2 font-medium"
                         >
-                            <div className="mb-1 flex h-9 w-9 items-center justify-center rounded-md">
-                                <AppLogoIcon className="size-9 fill-current text-[var(--foreground)] dark:text-white" />
+                            <div className="mb-1 flex items-center justify-center rounded-md bg-zinc-950 px-3 py-2">
+                                <CarStoryLockup
+                                    layout="stacked"
+                                    wordmarkTone="onDark"
+                                    imageClassName="max-h-10"
+                                />
                             </div>
                             <span className="sr-only">{title}</span>
                         </Link>

@@ -27,8 +27,8 @@ export default defineConfig({
             injectRegister: null,
             includeAssets: ['favicon.ico', 'icons/*.png'],
             manifest: {
-                name: 'CaRStory',
-                short_name: 'CaRStory',
+                name: 'CarStory',
+                short_name: 'CarStory',
                 description: 'История вашего автомобиля',
                 theme_color: '#18181b',
                 background_color: '#18181b',

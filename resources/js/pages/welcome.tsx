@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { motion, useInView, useMotionValue, useSpring } from 'framer-motion';
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { CarStoryMark } from '@/components/carstory-brand';
 import { ThemeToggle } from '@/components/theme-toggle';
 import {
     Accordion,
@@ -47,16 +48,6 @@ const heroItem = {
         transition: { duration: 0.4 },
     },
 };
-
-function LogoText({ className }: { className?: string }) {
-    return (
-        <span className={className}>
-            <span className="text-foreground">Ca</span>
-            <span className="text-brand-blue">R</span>
-            <span className="text-foreground">Story</span>
-        </span>
-    );
-}
 
 function StatNumber({ value }: { value: number }) {
     const ref = useRef<HTMLSpanElement>(null);
@@ -210,9 +201,12 @@ export default function Welcome({
                     <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6">
                         <Link
                             href={welcome().url}
-                            className="min-w-0 text-lg font-semibold tracking-tight"
+                            className="inline-flex shrink-0 items-center rounded-md bg-zinc-950 p-1.5 ring-1 ring-border/60"
                         >
-                            <LogoText />
+                            <CarStoryMark
+                                className="max-h-8"
+                                alt="CarStory"
+                            />
                         </Link>
                         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
                             <ThemeToggle />
@@ -532,8 +526,13 @@ export default function Welcome({
                 <footer className="border-t border-border px-4 py-10 sm:px-6">
                     <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 text-center sm:flex-row sm:items-start sm:justify-between sm:text-left">
                         <div>
-                            <p className="text-lg font-semibold">
-                                <LogoText />
+                            <p className="flex justify-center text-lg font-semibold sm:justify-start">
+                                <span className="inline-flex rounded-md bg-zinc-950 p-1.5 ring-1 ring-border/60">
+                                    <CarStoryMark
+                                        className="max-h-8"
+                                        alt="CarStory"
+                                    />
+                                </span>
                             </p>
                             <p className="text-muted-foreground mt-1 text-sm">
                                 © {year} CaRStory
